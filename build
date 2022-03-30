@@ -1,0 +1,39 @@
+#!/bin/bash
+
+CC=$(type -p clang)
+CXX=$(type -p clang++)
+
+if [[ -z "${CC}" ]]; then
+	echo "Command clang not found. Exiting."
+	exit
+fi
+
+if [[ -z "${CXX}" ]]; then
+	echo "Command clang++ not found. Exiting."
+	exit
+fi
+
+
+OUTDIR="cmake-build-debug"
+BUILD_MODE="Debug"
+
+while getopts "r" opt; do
+	case $opt in
+		r)
+			OUTDIR="cmake-build-release"
+			BUILD_MODE="Release"
+			;;
+		\?)
+			echo "Invalid option: -$OPTARG" >&2
+			exit 1
+			;;
+	esac
+done
+
+echo "Build mode: $BUILD_MODE"
+echo "Build dir: $OUTDIR"
+
+
+cmake -S . -B $OUTDIR -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=
+cd cmake-build-debug
+make
