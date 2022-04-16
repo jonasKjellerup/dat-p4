@@ -1,39 +1,65 @@
-#!/bin/bash
+#!/usr/bin/env python3
 
-CC=$(type -p clang)
-CXX=$(type -p clang++)
+import os
+import argparse
+import multiprocessing
 
-if [[ -z "${CC}" ]]; then
-	echo "Command clang not found. Exiting."
-	exit
-fi
-
-if [[ -z "${CXX}" ]]; then
-	echo "Command clang++ not found. Exiting."
-	exit
-fi
+project_name = 'eel'
 
 
-OUTDIR="cmake-build-debug"
-BUILD_MODE="Debug"
-
-while getopts "r" opt; do
-	case $opt in
-		r)
-			OUTDIR="cmake-build-release"
-			BUILD_MODE="Release"
-			;;
-		\?)
-			echo "Invalid option: -$OPTARG" >&2
-			exit 1
-			;;
-	esac
-done
-
-echo "Build mode: $BUILD_MODE"
-echo "Build dir: $OUTDIR"
+def print_env(name):
+    print(f"env[{name}] = {os.environ[name]}")
 
 
-cmake -S . -B $OUTDIR -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=
-cd cmake-build-debug
-make
+def set_compiler_build_environs():
+    os.environ["CC"] = "clang"
+    os.environ["CXX"] = "clang++"
+
+
+def get_cmake_dir():
+    return build_args.out_dir if build_args.out_dir is not None \
+        else 'cmake-build-release' if build_args.build_release \
+        else 'cmake-build-debug'
+
+
+def get_cmake_build_type():
+    return "Debug" if build_args.build_release is not True else "Release"
+
+
+def mkdir_if_not_exists(path):
+    try:
+        os.mkdir(path)
+    except FileExistsError:
+        return
+
+
+def build_compiler():
+    build_dir = get_cmake_dir()
+    build_type = get_cmake_build_type()
+    set_compiler_build_environs()
+
+    print(f"Build mode: {build_type}")
+    print(f"Build dir: {build_dir}\n")
+    print_env("CC")
+    print_env("CXX")
+
+    print("Creating `antlr-build`")
+    mkdir_if_not_exists("antlr-build")
+
+    os.system(f"cmake -S . -B {get_cmake_dir()} -G \"Unix Makefiles\" -DCMAKE_BUILD_TYPE={build_type} -Wno-deprecated")
+
+    print(f"Entering `{build_dir}`")
+    os.chdir(build_dir)
+
+    print("Building project")
+    os.system(f"cmake --build . -j {build_args.threads}")
+
+
+build_parser = argparse.ArgumentParser(description=f'Build tool for {project_name}.')
+build_parser.add_argument('--release', '-R', action='store_true', dest='build_release')
+build_parser.add_argument('--out', '-o', action='store', dest='out_dir')
+build_parser.add_argument('--skip-cmake', action='store_true', dest='skip_cmake')
+build_parser.add_argument('-j', action='store', dest='threads', default=multiprocessing.cpu_count())
+build_args = build_parser.parse_args()
+
+build_compiler()
