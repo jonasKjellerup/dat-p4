@@ -1,34 +1,115 @@
 grammar eel;
 
-Identifier:  [_a-zA-Z][_a-zA-Z0-9]*;
-TrailingComma: ',' |;
-DecDigit: [0-9];
-HexDigit: [0-9a-fA-F];
-CharSymbol:
-    '\\n' | '\\r' | '\\t' | '\\v'
-    | '\\x' HexDigit+ | '\\\\'
-    | '\\\'' | '\\"' | [ -~]
-;
-
 IntegerLiteral: DecDigit+ | '0x' HexDigit+;
 FloatLiteral: '.' DecDigit+ | DecDigit+ '.' DecDigit+;
 BoolLiteral: 'true' | 'false';
-CharLiteral: '\'' CharSymbol '\'';
+CharLiteral: '\'' CharSymbol? '\'';
 StringLiteral: '"' CharSymbol* '"';
+
+DecDigit: [0-9];
+HexDigit: [0-9a-fA-F];
+
+IntegerTypes: 'i8'
+    | 'i16'
+    | 'i32'
+    | 'i64'
+    | 'u8'
+    | 'u16'
+    | 'u32'
+    | 'u64'
+;
+
+
+FloatingTypes: 'f32' | 'f64' ;
+CharType: 'char';
+StringType: 'string';
+PinType: 'analog' | 'digital' ;
+
+Include: 'include';
+Pin: 'pin';
+Loop: 'loop';
+Setup: 'setup';
+
+Struct: 'struct';
+Union: 'union';
+Enum: 'enum';
+Untagged: 'untagged';
+
+Static: 'static';
+Const: 'const';
+As: 'as';
+
+
+Fn: 'fn';
+Return: 'return';
+Break: 'break';
+Continue: 'continue';
+Self: 'self';
+Impl: 'impl';
+
+Event: 'event';
+Interval: 'interval';
+Trait: 'trait';
+
+On: 'on';
+In: 'in';
+Await: 'await';
+Lock: 'lock';
+Set: 'set';
+Mode: 'mode';
+Read: 'read';
+
+
+Namespace: 'namespace';
+
+If: 'if';
+Else: 'else';
+
+Switch: 'switch';
+Case: 'case';
+Default: 'default';
+
+While: 'while';
+Do: 'do';
+For: 'for';
+Foreach: 'foreach';
+
+Identifier:  [_a-zA-Z][_a-zA-Z0-9]*;
+CharSymbol:
+    '\\n' | '\\r' | '\\t' | '\\v'
+    | '\\x' HexDigit+ | '\\\\'
+    | '\\\'' | '\\"' | [\u0028-\u002E\u0032-\u0085\u0087-\u00B0]
+;
+
 Comment: '//' ~[\r\n]* -> skip;
 BlockComment: '/*' .*? '*/' -> skip;
+Ignore: [ \r\n] -> skip;
+
+
+trailingComma: ',' |;
 
 fqn: fqn '::' Identifier | Identifier;
 
-type: fqn | arrayType | pointerType | referenceType;
+type:
+      arrayType
+    | pointerType
+    | referenceType
+    | IntegerTypes
+    | FloatingTypes
+    | CharType
+    | StringType
+    | PinType
+    | fqn
+;
+
 arrayType: arrayType '[' expr ']' | fqn '[' expr ']';
 pointerType: fqn '*';
 referenceType: fqn '&';
 
-program: tlDecl;
+program: tlDecl* ;
 
 tlDecl:
-    decls
+    decl
     | loopDecl
     | setupDecl
     | includeDirective
@@ -64,20 +145,20 @@ decl:
 
 
 includeDirective:
-    'include' Identifier ';'
-    | 'include' Identifier 'as' Identifier ';'
+    Include Identifier ';'
+    | Include Identifier As Identifier ';'
 ;
 
 loopDecl:
-    'loop' stmtBlock
+    Loop stmtBlock
 ;
 
 setupDecl:
-    'setup' stmtBlock
+    Setup stmtBlock
 ;
 
 pinDecl:
-    'pin' Identifier type '(' expr ')' ';'
+    Pin Identifier type conditionBlock ';'
 ;
 
 variableDecl:
@@ -86,11 +167,11 @@ variableDecl:
 ;
 
 constDecl:
-    'const' type Identifier '=' expr ';'
+    Const type Identifier '=' expr ';'
 ;
 
 staticDecl:
-    'static' variableDecl
+    Static variableDecl
 ;
 
 
@@ -102,74 +183,76 @@ associatedMember:
 ;
 
 instanceAssocParamList:
-    '&' 'self' ',' paramList
-    | '&' 'self'
+    '&' Self ',' paramList
+    | '&' Self
 ;
 
 instanceAssociatedFn:
-    'fn' Identifier '(' instanceAssocParamList TrailingComma ')' stmtBlock
-    | 'fn' Identifier '(' instanceAssocParamList TrailingComma ')' '->' type stmtBlock
+    Fn Identifier '(' instanceAssocParamList trailingComma ')' stmtBlock
+    | Fn Identifier '(' instanceAssocParamList trailingComma ')' '->' type stmtBlock
 ;
 
 partialInstanceAssociatedFn:
-    'fn' Identifier '(' instanceAssocParamList TrailingComma ')' ';'
-    | 'fn' Identifier '(' instanceAssocParamList TrailingComma ')' '->' type ';'
+    Fn Identifier '(' instanceAssocParamList trailingComma ')' ';'
+    | Fn Identifier '(' instanceAssocParamList trailingComma ')' '->' type ';'
 ;
 
 typeAssociatedFn: fnDecl;
 
 partialTypeAssociatedFn:
-    'fn' Identifier '(' paramList ')' ';'
-    | 'fn' Identifier '(' paramList ')' '->' type ';'
+    Fn Identifier '(' paramList ')' ';'
+    | Fn Identifier '(' paramList ')' '->' type ';'
 ;
 
 traitImplBlock:
-    'impl' type 'for' type '{' associatedMember* '}'
+    Impl type For type '{' associatedMember* '}'
 ;
 
 implBlock:
-    'impl' type '{' associatedMember* '}'
+    Impl type '{' associatedMember* '}'
 ;
 
 fnDecl:
-    'fn' Identifier '(' paramList ')' stmtBlock
-    | 'fn' Identifier '(' paramList ')' '->' type stmtBlock
+    Fn Identifier '(' paramList ')' stmtBlock
+    | Fn Identifier '(' paramList ')' '->' type stmtBlock
 ;
 
 paramList:
     fnParam ',' paramList
-    | fnParam TrailingComma;
+    | fnParam trailingComma
+    | // Used for empty parameter list
+    ;
 
 fnParam: type Identifier;
 
 eventDecl:
-    'event' Identifier ';'
-    | 'event' Identifier stmtBlock
+    Event Identifier ';'
+    | Event Identifier stmtBlock
 ;
 
 intervalDecl:
-    'interval' Identifier '=' expr ';'
+    Interval Identifier '=' expr ';'
 ;
 
 traitDecl:
-    'trait' Identifier '{' associatedMember* '}'
+    Trait Identifier '{' associatedMember* '}'
 ;
 
 structDecl:
-    'struct' Identifier '{' fieldList '}'
+    Struct Identifier '{' fieldList '}'
 ;
 
 unionDecl:
-    'union' Identifier '{' fieldList '}'
+    Union Identifier '{' fieldList '}'
 ;
 
 untaggedUnionDecl:
-    'untagged' unionDecl
+    Untagged unionDecl
 ;
 
 enumDecl:
-    'enum' Identifier ':' type '{' Identifier '}' ';'
-    | 'enum' Identifier ':' type '{' expr '}' ';'
+    Enum Identifier ':' type '{' Identifier '}' ';'
+    | Enum Identifier ':' type '{' expr '}' ';'
 ;
 
 fieldList:
@@ -183,11 +266,11 @@ field:
 
 
 namespaceDecl:
-    'namespace' Identifier '{' decls '}'
+    Namespace Identifier '{' decls '}'
 ;
 
 onDecl:
-    'on' Identifier stmtBlock
+    On Identifier stmtBlock
 ;
 
 stmt:
@@ -210,62 +293,63 @@ stmtsOrLDecls:
     |
 ;
 stmtBlock: '{' stmtsOrLDecls '}';
+conditionBlock: '(' expr ')';
 
-breakStmt: 'break';
-continueStmt: 'continue';
-returnStmt: 'return' expr;
+breakStmt: Break;
+continueStmt: Continue;
+returnStmt: Return expr;
 
-elseStmt: 'else' stmt | 'else' '{' stmts '}' ;
-ifStmt: 'if' '(' expr ')' stmt elseStmt? | 'if' '(' expr ')' '{' stmts '}' elseStmt? ;
+elseStmt: Else stmt | Else stmtBlock ;
+ifStmt: If conditionBlock stmt elseStmt? | If conditionBlock stmtBlock elseStmt? ;
 
 switchStmt:
-    'switch' '(' expr ')' '{' caseStmt+ '}'
+    Switch conditionBlock '{' caseStmt+ '}'
 ;
 
 
 caseStmt:
-    'case' expr stmts
+    Case expr stmts
     | defaultStmts
 ;
 
 defaultStmts:
-    'default' stmts
+    Default stmts
 ;
 
 whileStmt:
-    'while' ( expr ) stmtBlock
+    While conditionBlock stmtBlock
 ;
 
 doWhileStmt:
-    'do' stmtBlock 'while' ( expr )
+    Do stmtBlock While ( expr )
 ;
 
 forStmt:
-    'for' '(' stmt ';' expr ';' stmt ')' stmtBlock
+    For '(' stmt ';' expr ';' stmt ')' stmtBlock
 ;
 
 forEachStmt:
-    'foreach' '(' Identifier 'in' 'Identifier' ')'
-    | 'foreach' '(' Identifier ',' Identifier 'in' 'Identifier' ')'
+    Foreach '(' Identifier In Identifier ')'
+    | Foreach '(' Identifier ',' Identifier 'in' Identifier ')'
 ;
 
 
 lockStmt:
-    'lock' lockList stmtBlock
+    Lock lockList stmtBlock
 ;
 
 lockList:
     Identifier ',' lockList
-    | Identifier TrailingComma
+    | Identifier trailingComma
 ;
 
 awaitStmt:
-    'await' expr ;
+    Await expr ;
 
 pinStmt:
-    'set' Identifier expr
-    | 'set' Identifier 'mode' expr
-    | 'set' Identifier 'pin' expr
+    Set Identifier expr
+    | Set Identifier Mode expr
+    | Set Identifier Pin expr
 ;
 
 fieldInit:
@@ -274,7 +358,7 @@ fieldInit:
 
 exprList:
     expr ',' exprList
-    | expr TrailingComma
+    | expr trailingComma
 ;
 
 
@@ -283,7 +367,7 @@ expr:
     | IntegerLiteral # IntegerLiteral
     | FloatLiteral # FloatLiteral
     | BoolLiteral # BoolLiteral
-    | CharLiteral # CharLiteral
+    | CharLiteral # CharLiterals
     | StringLiteral # StringLiteral
 
     | type '{' fieldInit* '}' # StructExpr
@@ -291,7 +375,7 @@ expr:
 
     | fqn # FqnExpr
     | readPin # ReadPinExpr
-    | expr 'as' type # CastExpr
+    | expr As type # CastExpr
 
     | <assoc=right> '+' expr # Pos
     | <assoc=right> '-' expr # Neg
@@ -335,5 +419,5 @@ expr:
 ;
 
 readPin:
-    'read' Identifier
+    Read Identifier
 ;
