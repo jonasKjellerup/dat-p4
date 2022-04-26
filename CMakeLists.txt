@@ -19,14 +19,13 @@ antlr_target(Eel ${PROJECT_SOURCE_DIR}/src/eel.g4
         PACKAGE eel
         OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/antlr-build)
 
-include_directories(${ANTLR_EelLexer_OUTPUT_DIR})
-include_directories(${ANTLR_EelParser_OUTPUT_DIR})
+include_directories(${ANTLR_Eel_OUTPUT_DIR})
 
 add_compile_options(-Wall -Wextra -pedantic)
 
 add_library(compiler
         ${ANTLR_Eel_CXX_OUTPUTS}
-        ${ANTLR_Eel_CXX_OUTPUTS})
+        ${ANTLR_Eel_CXX_OUTPUTS} src/parsing.cc src/symbol_table.cc)
 target_link_libraries(compiler antlr4_static)
 
 add_executable(compiler_cli src/cli.cc)

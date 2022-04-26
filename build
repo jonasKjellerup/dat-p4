@@ -54,12 +54,23 @@ def build_compiler():
     print("Building project")
     os.system(f"cmake --build . -j {build_args.threads}")
 
+global_parser = argparse.ArgumentParser(description=f'Build tool for {project_name}.')
+subcommand_parsers = global_parser.add_subparsers(dest='subcommand')
 
-build_parser = argparse.ArgumentParser(description=f'Build tool for {project_name}.')
+build_parser = subcommand_parsers.add_parser('build', description=f'Build the project')
 build_parser.add_argument('--release', '-R', action='store_true', dest='build_release')
 build_parser.add_argument('--out', '-o', action='store', dest='out_dir')
 build_parser.add_argument('--skip-cmake', action='store_true', dest='skip_cmake')
 build_parser.add_argument('-j', action='store', dest='threads', default=multiprocessing.cpu_count())
 build_args = build_parser.parse_args()
 
-build_compiler()
+run_parser = subcommand_parsers.add_parsers('run', description=f'Run the project')
+run_parser.add_argument('--release', '-R', action='store_true', dest='build_release')
+run_parser.add_argument('--dir', '-D', action='store', dest='build_dir')
+
+subcommand = global_parser.subcommand
+if subcommand == "build":
+    build_compiler()
+elif subcommand == "run":
+    print("run command is not currently implemented")  # TODO
+
