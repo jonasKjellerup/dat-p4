@@ -3,12 +3,14 @@
 using namespace eel;
 
 /*
- * Scope implementation
+ * Scope_ implementation
  */
 
-bool Scope::is_root() {
+bool Scope_::is_root() {
     return this->parent != nullptr;
 }
+
+Scope_* Scope::operator->() { return &this->table->scopes[this->id]; }
 
 /*
  * Symbol table implementation
@@ -19,10 +21,11 @@ SymbolTable::SymbolTable() {
     this->scopes.emplace_back(this, 0);
 }
 
-Scope* SymbolTable::derive_scope() {
+
+Scope_* SymbolTable::derive_scope() {
     return this->derive_scope(&this->scopes[0]);
 }
 
-Scope* SymbolTable::derive_scope(Scope* scope) {
+Scope_* SymbolTable::derive_scope(Scope_* scope) {
     return &this->scopes.emplace_back(this, scope, this->scopes.size());
 }
