@@ -6,9 +6,6 @@ BoolLiteral: 'true' | 'false';
 CharLiteral: '\'' CharSymbol? '\'';
 StringLiteral: '"' CharSymbol* '"';
 
-DecDigit: [0-9];
-HexDigit: [0-9a-fA-F];
-
 IntegerTypes: 'i8'
     | 'i16'
     | 'i32'
@@ -75,11 +72,14 @@ For: 'for';
 Foreach: 'foreach';
 
 Identifier:  [_a-zA-Z][_a-zA-Z0-9]*;
+
 CharSymbol:
     '\\n' | '\\r' | '\\t' | '\\v'
     | '\\x' HexDigit+ | '\\\\'
     | '\\\'' | '\\"' | [\u0028-\u002E\u0032-\u0085\u0087-\u00B0]
 ;
+DecDigit: [0-9];
+HexDigit: [0-9a-fA-F];
 
 Comment: '//' ~[\r\n]* -> skip;
 BlockComment: '/*' .*? '*/' -> skip;
