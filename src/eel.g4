@@ -284,6 +284,9 @@ stmt:
     | lockStmt
     | awaitStmt
     | pinStmt
+    | continueStmt
+    | breakStmt
+    | returnStmt
     | expr ';'
 ;
 stmts: stmt*;
@@ -295,25 +298,23 @@ stmtsOrLDecls:
 stmtBlock: '{' stmtsOrLDecls '}';
 conditionBlock: '(' expr ')';
 
-breakStmt: Break;
-continueStmt: Continue;
-returnStmt: Return expr;
+breakStmt: Break ';';
+continueStmt: Continue ';';
+returnStmt: Return expr ';';
 
 elseStmt: Else stmt | Else stmtBlock ;
 ifStmt: If conditionBlock stmt elseStmt? | If conditionBlock stmtBlock elseStmt? ;
 
 switchStmt:
-    Switch conditionBlock '{' caseStmt+ '}'
+    Switch conditionBlock '{' (caseStmt | defaultStmt)* '}'
 ;
-
 
 caseStmt:
-    Case expr stmts
-    | defaultStmts
+    Case expr ':' stmts
 ;
 
-defaultStmts:
-    Default stmts
+defaultStmt:
+    Default ':' stmts
 ;
 
 whileStmt:
