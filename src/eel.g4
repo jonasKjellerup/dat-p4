@@ -256,7 +256,7 @@ untaggedUnionDecl:
 ;
 
 enumDecl:
-    Enum Identifier (':' type)? '{' (Identifier ';'| expr ';')* '}'
+    Enum Identifier (':' type)? '{' (Identifier ('=' expr)? ';')* '}'
 ;
 
 fieldList:
