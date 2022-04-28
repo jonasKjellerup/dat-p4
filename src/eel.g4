@@ -305,7 +305,7 @@ elseStmt: Else stmt | Else stmtBlock ;
 ifStmt: If conditionBlock stmt elseStmt? | If conditionBlock stmtBlock elseStmt? ;
 
 switchStmt:
-    Switch conditionBlock '{' (caseStmt | defaultStmt)* '}'
+    Switch conditionBlock '{' ((caseStmt)* | (caseStmt* defaultStmt?)) '}'
 ;
 
 caseStmt:
@@ -321,7 +321,7 @@ whileStmt:
 ;
 
 doWhileStmt:
-    Do stmtBlock While ( expr )
+    Do stmtBlock While '(' expr ')'
 ;
 
 forStmt:
@@ -330,7 +330,7 @@ forStmt:
 
 forEachStmt:
     Foreach '(' Identifier In Identifier ')'
-    | Foreach '(' Identifier ',' Identifier 'in' Identifier ')'
+    | Foreach '(' Identifier ',' Identifier In Identifier ')'
 ;
 
 
