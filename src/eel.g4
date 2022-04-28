@@ -299,7 +299,7 @@ conditionBlock: '(' expr ')';
 
 breakStmt: Break ';';
 continueStmt: Continue ';';
-returnStmt: Return expr ';';
+returnStmt: Return expr? ';';
 
 elseStmt: Else stmt | Else stmtBlock ;
 ifStmt: If conditionBlock stmt elseStmt? | If conditionBlock stmtBlock elseStmt? ;
