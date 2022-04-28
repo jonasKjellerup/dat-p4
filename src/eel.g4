@@ -386,7 +386,7 @@ expr:
     | fqn '&' # ReferenceExpr
     | fqn # FqnExpr
 
-    | readPin # ReadPinExpr
+    | Read Identifier # ReadPinExpr
     | expr As type # CastExpr
 
     | <assoc=right> '+' expr # Pos
@@ -428,8 +428,4 @@ expr:
     | <assoc=right> expr '|=' expr # OrAssign
     | <assoc=right> expr '&=' expr # AndAssign
     | <assoc=right> expr '^=' expr # XorAssign
-;
-
-readPin:
-    Read Identifier
 ;
