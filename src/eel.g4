@@ -154,7 +154,7 @@ setupDecl:
 ;
 
 pinDecl:
-    Pin Identifier type conditionBlock ';'
+    Pin Identifier PinType conditionBlock ';'
 ;
 
 variableDecl:
