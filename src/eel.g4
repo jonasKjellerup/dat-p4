@@ -91,20 +91,13 @@ trailingComma: ',' |;
 fqn: fqn '::' Identifier | Identifier;
 
 type:
-      arrayType
-    | pointerType
-    | referenceType
-    | IntegerTypes
+     IntegerTypes
     | FloatingTypes
     | CharType
     | StringType
     | PinType
     | fqn
 ;
-
-arrayType: arrayType '[' expr ']' | fqn '[' expr ']';
-pointerType: fqn '*';
-referenceType: fqn '&';
 
 program: tlDecl* ;
 
@@ -122,6 +115,9 @@ lDecl:
     | constDecl
     | staticDecl
     | pinDecl
+    | arrayDecl
+    | referenceDecl
+    | pointerDecl
 ;
 
 typeDecl:
@@ -174,6 +170,15 @@ staticDecl:
     Static variableDecl
 ;
 
+arrayDecl:
+    type Identifier '[' ']' '=' arrayInit ';'
+    | type Identifier '[' expr ']' ('=' arrayInit)? ';'
+;
+
+referenceDecl: type '&' Identifier ('=' expr)? ';';
+pointerDecl: type '*' Identifier ('=' expr)? ';';
+
+arrayInit: '{' exprList '}';
 
 associatedMember:
     instanceAssociatedFn
@@ -261,6 +266,8 @@ fieldList:
 
 field:
     type Identifier ';'
+    | type Identifier '[' expr ']' ';'
+    | type ('&' | '*')? Identifier ';'
 ;
 
 
@@ -362,6 +369,7 @@ exprList:
 ;
 
 
+
 expr:
     '(' expr ')' # ParenExpr
     | IntegerLiteral # IntegerLiteral
@@ -371,9 +379,13 @@ expr:
     | StringLiteral # StringLiteral
 
     | type '{' fieldInit* '}' # StructExpr
-    | '{' exprList '}' # ArrayExpr
+    | type '{' fieldInit? '}' # UnionExpr
 
+    | (Identifier '[' expr ']' | fqn '[' expr ']') # ArrayExpr
+    | fqn '*' # PointerExpr
+    | fqn '&' # ReferenceExpr
     | fqn # FqnExpr
+
     | readPin # ReadPinExpr
     | expr As type # CastExpr
 
