@@ -301,6 +301,7 @@ stmtsOrLDecls:
     | lDecl stmtsOrLDecls
     |
 ;
+
 stmtBlock: '{' stmtsOrLDecls '}';
 conditionBlock: '(' expr ')';
 
@@ -328,11 +329,11 @@ whileStmt:
 ;
 
 doWhileStmt:
-    Do stmtBlock While '(' expr ')'
+    Do stmtBlock While conditionBlock
 ;
 
 forStmt:
-    For '(' stmt ';' expr ';' stmt ')' stmtBlock
+    For '(' stmtsOrLDecls  expr ';'  expr ')' stmtBlock
 ;
 
 forEachStmt:
@@ -379,7 +380,6 @@ expr:
     | StringLiteral # StringLiteral
 
     | type '{' fieldInit* '}' # StructExpr
-    | type '{' fieldInit? '}' # UnionExpr
 
     | (Identifier '[' expr ']' | fqn '[' expr ']') # ArrayExpr
     | fqn '*' # PointerExpr
