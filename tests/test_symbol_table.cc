@@ -22,8 +22,8 @@ TEST_CASE( "symbol lookup propagates into parent scope", "[symbol_table]" ) {
     table.root_scope->declare_var(symbol_name);
     auto symbol = scope_a->find(symbol_name);
 
-    REQUIRE(symbol != nullptr);
-    REQUIRE(symbol->kind == eel::Symbol::Kind::Variable);
+    REQUIRE_FALSE(symbol.is_nullptr());
+    REQUIRE(symbol->kind == eel::Symbol_::Kind::Variable);
 }
 
 /*
@@ -50,8 +50,47 @@ TEST_CASE( "symbol shadows similar symbol from outer scope", "[symbol_table]" ) 
 
     auto inner_symbol = inner_scope->find(symbol_name);
 
-    REQUIRE(outer_symbol != nullptr);
-    REQUIRE(inner_symbol != nullptr);
-    REQUIRE(inner_symbol != outer_symbol);
+    REQUIRE(!outer_symbol.is_nullptr());
+    REQUIRE(!inner_symbol.is_nullptr());
     REQUIRE(inner_symbol->id != outer_symbol->id);
 }
+
+/*
+ * Tests handling of an undeclared expected static symbols.
+ *
+ * Example:
+ * fn a() {
+ *  b(); // The compiler is not yet aware of the existence of a symbol named b
+ * }
+ *
+ * // The compiler then becomes aware of the symbol.
+ * // The reference to `b` in the function `a` should be
+ * // updated to refer to `b`
+ * fn b() {}
+ */
+TEST_CASE( "static declaration resolves expected symbol", "[symbol_table]" ) {
+    eel::SymbolTable table;
+
+    using Kind = eel::Symbol_::Kind;
+
+    std::string symbol_name = "symbolA";
+    auto deferred_symbol = table.root_scope->defer_symbol(symbol_name, Kind::Variable);
+
+    REQUIRE(!deferred_symbol.is_nullptr());
+    REQUIRE(deferred_symbol->kind == Kind::Indirect);
+    REQUIRE(deferred_symbol->value.indirect.kind == Kind::Variable);
+    REQUIRE_FALSE(deferred_symbol->value.indirect.is_set());
+
+    table.root_scope->declare_var(symbol_name);
+    table.try_resolve_unresolved();
+
+    REQUIRE(deferred_symbol->value.indirect.is_set());
+
+    auto s = table.get_symbol(deferred_symbol->value.indirect.id);
+    REQUIRE_FALSE(s.is_nullptr());
+    REQUIRE(s->kind == Kind::Variable);
+    REQUIRE(s->name == symbol_name);
+
+}
+
+// TODO test out of order static declaration with duplicate name

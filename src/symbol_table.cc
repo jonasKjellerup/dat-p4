@@ -3,19 +3,18 @@
 using namespace eel;
 
 /*
- * Scope implementation
+ * Template specialisations
  */
 
-Scope::Scope(Scope_* scope) {
-    this->id = scope->id;
-    this->table = scope->context;
+template<>
+Scope_* TablePtr<Scope_>::operator->() {
+    return this->table->get_scope_raw(this->id);
 }
 
-Scope_* Scope::operator->() { return this->table->get_scope_raw(id); }
-
-
-bool Scope::is_nullptr() { return this->table == nullptr; }
-
+template<>
+Symbol_* TablePtr<Symbol_>::operator->() {
+    return this->table->get_symbol_raw(this->id);
+}
 
 /*
  * Scope_ implementation
@@ -32,8 +31,13 @@ Scope_::Scope_(SymbolTable* context, Scope parent, Scope_::Id id) {
     this->parent = parent;
 }
 
+// Cast Scope_ to Scope
 Scope_::operator Scope() {
     return Scope(this);
+}
+
+bool Scope_::is_root() {
+    return this->parent.is_nullptr();
 }
 
 void Scope_::declare_var(const std::string& name) {
@@ -41,26 +45,16 @@ void Scope_::declare_var(const std::string& name) {
         // TODO throw exception
     }
 
-    Symbol& symbol = this->context->new_symbol();
-    symbol.kind = Symbol::Kind::Variable;
+    Symbol_& symbol = this->context->new_symbol();
+    symbol.kind = Symbol_::Kind::Variable;
     symbol.name = name;
 
     this->symbol_map.insert(std::make_pair(name, symbol.id));
 }
 
-bool Scope_::is_root() {
-    return this->parent.is_nullptr();
-}
 
-Symbol* Scope_::find(std::string& name) {
-    auto s = this->symbol_map.find(name);
-    if (s == this->symbol_map.end()) {
-        if (!this->parent.is_nullptr())
-            return this->parent->find(name);
-        else return nullptr;
-    }
-    return this->context->get_symbol(s->second);
-}
+
+
 
 
 /*
@@ -93,13 +87,107 @@ Scope_* SymbolTable::get_scope_raw(Scope::Id id) {
     return &this->scopes.at(id);
 }
 
-Symbol& SymbolTable::new_symbol() {
-    Symbol& symbol = this->symbols.emplace_back();
+Symbol_& SymbolTable::new_symbol() {
+    Symbol_& symbol = this->symbols.emplace_back();
     symbol.id = this->symbols.size() - 1;
 
     return symbol;
 }
 
-Symbol* SymbolTable::get_symbol(Symbol::Id id) {
-    return &symbols[id];
+Symbol SymbolTable::get_symbol(Symbol_::Id id) {
+    // TODO check if id is valid
+    return {id, this};
+}
+
+Symbol::Raw SymbolTable::get_symbol_raw(Symbol::Id id) {
+    return &this->symbols[id];
+}
+
+bool Symbol_::Indirect::is_set() const {
+    return this->id > 0;
+}
+
+
+/*
+ * Symbol resolution
+ */
+
+Symbol Scope_::find(const std::string& name) {
+    auto s = this->symbol_map.find(name);
+    if (s == this->symbol_map.end()) {
+        if (!this->is_root())
+            return this->parent->find(name);
+        else return {};
+    }
+    return this->context->get_symbol(s->second);
+}
+
+Symbol Scope_::defer_symbol(std::string name, Symbol_::Kind kind) {
+    // Throw error if we are trying to defer an already existing symbol.
+    if (this->symbol_map.contains(name)) {
+        // TODO throw exception (this is considered an internal error, not user source error)
+    }
+
+    // TODO: figure out if the symbol needs to be registered in
+    //       the scopes symbol map.
+    //       The main considerations are as follows:
+    //          - Multiple uses of the same symbol will result in
+    //            duplicate indirection symbols. (Without registration)
+    //          - (With registration) an resolution conflict can occur
+    //            between a outer static and a inner non-static decl.
+
+    Symbol_& s = this->context->new_symbol();
+    s.name = name;
+    s.kind = Symbol_::Kind::Indirect;
+    s.value.indirect = {kind, 0};
+
+    this->context->report_unresolved_symbol({
+        kind,
+        this->id,
+        s.id,
+        name,
+    });
+
+    return this->context->get_symbol(s.id);
+}
+
+void SymbolTable::report_unresolved_symbol(UnresolvedSymbol&& symbol) {
+    this->unresolved_symbols.emplace_back(symbol);
+}
+
+/// \brief Attempts to resolve an unresolved symbol.
+/// \returns True if the symbol was resolved. Otherwise false.
+static bool try_resolve(const UnresolvedSymbol& symbol, SymbolTable* context) {
+    bool resolved;
+    auto scope = context->get_scope(symbol.origin_scope);
+    auto matching_symbol = scope->find(symbol.name);
+
+    resolved = !matching_symbol.is_nullptr()
+               && matching_symbol->kind == symbol.expected_kind;
+    // TODO: Include check that the symbol is static.
+    //       Any symbol that is non-static that was not
+    //       resolved originally will per definition be
+    //       inaccessible in the given context.
+    //       The only reason why this is not done yet
+    //       is the fact that symbol definitions are
+    //       yet to be implemented.
+
+    if (resolved) {
+        auto indirection_symbol = context->get_symbol(symbol.indirection_symbol);
+        indirection_symbol->value.indirect.id = matching_symbol->id;
+    }
+
+    return resolved;
+}
+
+void SymbolTable::try_resolve_unresolved() {
+    // Removes any symbol that can be resolved by `try_resolve`
+    // from the list of unresolved symbols.
+    this->unresolved_symbols.erase(
+            std::remove_if(
+                    this->unresolved_symbols.begin(),
+                    this->unresolved_symbols.end(),
+                    [this](const UnresolvedSymbol& symbol) { return try_resolve(symbol, this); }),
+            this->unresolved_symbols.end()
+    );
 }

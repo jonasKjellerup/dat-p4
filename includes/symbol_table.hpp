@@ -1,7 +1,7 @@
 #pragma once
 
 #include <string>
-#include <hash_map>
+#include <unordered_map>
 #include <vector>
 
 // Temporary declarations of SymbolDefinitions
@@ -20,7 +20,39 @@ namespace eel {
     struct SymbolTable;
     struct Scope_;
 
-    struct Symbol {
+    /// \brief An indirect pointer to an object owned by a `SymbolTable`.
+    /// A generic type for referencing objects stored within
+    /// a symbol table.
+    ///
+    /// The type requires a specialized implementation of the `->` operator
+    /// for each type `T` that is to be used with this type.
+    template<typename T>
+    struct TablePtr {
+    public:
+        using Id = typename T::Id;
+        /// \brief A convenience alias of the direct/raw equivalent to TablePtr type.
+        using Raw = T*;
+
+        TablePtr() = default;
+        explicit TablePtr(T* ptr) {
+            this->id = ptr->id;
+            this->table = ptr->context;
+        }
+
+        TablePtr(Id id, SymbolTable* context) : id(id), table(context){}
+
+        T* operator->();
+
+        bool is_nullptr() {
+            return this->table == nullptr;
+        }
+
+    private:
+        Id id {};
+        SymbolTable* table{};
+    };
+
+    struct Symbol_ {
         using Id = uint32_t;
 
         enum struct Kind {
@@ -29,27 +61,18 @@ namespace eel {
             Function = 4,
             Type = 8,
             Namespace = 16,
-            Expected = -1,
+            Indirect = 32,
         };
 
-        /// \brief Represents an expected symbol.
-        /// Expected symbols are used when a symbol
-        /// is referenced before being declared.
-        struct Expected {
-            /// \brief The kinds of symbols that are valid
-            ///        in the context where the symbol was used.
-            /// The value will be interpreted as a series of
-            /// flags, such that cases where more than one
-            /// kind is valid can be handle.
-            Kind kinds;
+        struct Indirect {
+            Kind kind;
+            Id id;
 
-            /// \brief Determines whether the symbol must
-            ///        be declared as a static symbol.
-            bool must_be_static;
+            bool is_set() const;
         };
 
         union Value {
-            Expected expected;
+            Indirect indirect;
             symbol_definitions::Variable variable;
         };
 
@@ -59,29 +82,20 @@ namespace eel {
         std::string name;
     };
 
+
     /// \brief An indirect pointer to a `Scope_` instance.
     /// Structure dereference is overloaded such that
     /// it dereferences to a `Scope_` instance.
     ///
     /// This helps avoid invalid pointers due to
     /// reallocation of the scope tables.
-    struct Scope {
-    public:
-        using Id = size_t;
+    using Scope = TablePtr<Scope_>;
+    using Symbol = TablePtr<Symbol_>;
 
-        Scope() = default;
-        explicit Scope(Scope_*);
-        Scope_* operator->();
-
-        bool is_nullptr();
-    private:
-        Id id;
-        SymbolTable* table;
-    };
 
     struct Scope_ {
     public:
-        using Id = Scope::Id;
+        using Id = size_t;
         friend Scope;
 
         Scope_(SymbolTable*, Id);
@@ -92,10 +106,14 @@ namespace eel {
         /// \brief Find a symbol by name within the scope.
         /// \returns A pointer to the symbol if found.
         ///          `nullptr` is returned otherwise.
-        Symbol* find(std::string&);
+        Symbol find(const std::string&);
 
-        /// Mark a symbol as expected in the given context
-        void expect();
+        /// \brief Defers the declaration of a symbol for later.
+        /// This is used whenever a symbol that has yet to be
+        /// declared is to used. This results in an indirect symbol
+        /// which will at some point (assuming that the correct symbol
+        /// is declared) point to the expected symbol.
+        Symbol defer_symbol(std::string name, Symbol_::Kind);
         void declare_const();
         void declare_var(const std::string&);
         void declare_type();
@@ -105,12 +123,27 @@ namespace eel {
         bool is_root();
     private:
         Id id;
-        std::unordered_map<std::string, Symbol::Id> symbol_map;
+        std::unordered_map<std::string, Symbol_::Id> symbol_map;
         Scope parent{};
         SymbolTable* context;
     };
 
+    /// \brief Info used to track unresolved symbols.
+    struct UnresolvedSymbol {
+        /// \brief The kind of symbol that is expected.
+        Symbol_::Kind expected_kind;
 
+        /// \brief The scope in which the symbol was found to be unresolvable.
+        Scope::Id origin_scope;
+
+        /// \brief The symbol that refers to the unresolved symbol.
+        /// This is the symbol that any dependant symbols use
+        /// to refer to the symbol without knowing whether it exists.
+        Symbol::Id indirection_symbol;
+
+        /// \brief The name of the symbol.
+        std::string name;
+    };
 
     /// \brief A table for managing program symbols.
     /// It should be noted that the lifetime of any
@@ -127,8 +160,9 @@ namespace eel {
 
         /// \brief Creates a new blank symbol.
         /// \returns A reference to the newly created symbol.
-        Symbol& new_symbol();
-        Symbol* get_symbol(Symbol::Id id);
+        Symbol_& new_symbol();
+        Symbol get_symbol(Symbol_::Id id);
+        Symbol::Raw get_symbol_raw(Symbol::Id id);
 
         Scope root_scope;
 
@@ -147,12 +181,20 @@ namespace eel {
         Scope derive_scope(Scope scope);
 
         Scope get_scope(Scope::Id id);
-        Scope_* get_scope_raw(Scope::Id id);
+        Scope::Raw get_scope_raw(Scope::Id id);
+
+        /// \brief Attempts to resolve unresolved symbols.
+        /// All symbols that are successfully resolved will
+        /// be removed from the unresolved symbol list,
+        /// allowing for the remaining symbols to be reported.
+        void try_resolve_unresolved();
+
+        void report_unresolved_symbol(UnresolvedSymbol&& symbol);
 
     private:
-        std::vector<Symbol> symbols;
+        std::vector<Symbol_> symbols;
         std::vector<Scope_> scopes;
+        std::vector<UnresolvedSymbol> unresolved_symbols;
     };
-
 
 }
