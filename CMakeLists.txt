@@ -25,8 +25,15 @@ add_compile_options(-Wall -Wextra -pedantic)
 
 add_library(compiler
         ${ANTLR_Eel_CXX_OUTPUTS}
-        ${ANTLR_Eel_CXX_OUTPUTS} src/parsing.cc src/symbol_table.cc)
+        ${ANTLR_Eel_CXX_OUTPUTS}
+        src/parsing.cc
+        src/symbol_table.cc)
 target_link_libraries(compiler antlr4_static)
+
+add_executable(compiler_tests
+        tests/entry.cc
+        tests/test_symbol_table.cc)
+target_link_libraries(compiler_tests compiler)
 
 add_executable(compiler_cli src/cli.cc)
 target_link_libraries(compiler_cli compiler)
