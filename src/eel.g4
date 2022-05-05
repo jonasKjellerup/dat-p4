@@ -3,8 +3,12 @@ grammar eel;
 IntegerLiteral: DecDigit+ | '0x' HexDigit+;
 FloatLiteral: '.' DecDigit+ | DecDigit+ '.' DecDigit+;
 BoolLiteral: 'true' | 'false';
-CharLiteral: '\'' CharSymbol? '\'';
-StringLiteral: '"' CharSymbol* '"';
+CharLiteral: '\'' ('\\n' | '\\r' | '\\t' | '\\v'
+                       | '\\x' HexDigit+ | '\\\\'
+                       | '\\\'' | [\u0020-\u0026\u0028-\u007E])? '\'';
+StringLiteral: '"' ('\\n' | '\\r' | '\\t' | '\\v'
+                        | '\\x' HexDigit+ | '\\\\'
+                        | '\\"' | [\u0020-\u0021\u0023-\u007E])* '"';
 
 IntegerTypes: 'i8'
     | 'i16'
@@ -73,13 +77,9 @@ Foreach: 'foreach';
 
 Identifier:  [_a-zA-Z][_a-zA-Z0-9]*;
 
-CharSymbol:
-    '\\n' | '\\r' | '\\t' | '\\v'
-    | '\\x' HexDigit+ | '\\\\'
-    | '\\\'' | '\\"' | [\u0028-\u002E\u0032-\u0085\u0087-\u00B0]
-;
 DecDigit: [0-9];
 HexDigit: [0-9a-fA-F];
+
 
 Comment: '//' ~[\r\n]* -> skip;
 BlockComment: '/*' .*? '*/' -> skip;
@@ -389,43 +389,43 @@ expr:
     | Read Identifier # ReadPinExpr
     | expr As type # CastExpr
 
-    | <assoc=right> '+' expr # Pos
-    | <assoc=right> '-' expr # Neg
-    | <assoc=right> '!' expr # Not
-    | <assoc=right> '~' expr # BitComp
-    | <assoc=right> '*' expr # Deref
+    | <assoc=right> '+' left=expr # Pos
+    | <assoc=right> '-' left=expr # Neg
+    | <assoc=right> '!' left=expr # Not
+    | <assoc=right> '~' left=expr # BitComp
+    | <assoc=right> '*' left=expr # Deref
 
-    | <assoc=left> expr ('/'|'*'|'%') expr # Scaling
-    | <assoc=left> expr ('+'|'-') expr # Addition
+    | <assoc=left> right=expr op=('/'|'*'|'%') left=expr # Scaling
+    | <assoc=left> right=expr op=('+'|'-') left=expr # Additive
 
-    | <assoc=left> expr '>>' expr # ArithmeticRightShift
-    | <assoc=left> expr '>>>' expr # LogicalRightShift
-    | <assoc=left> expr '<<' expr # LeftShift
+    | <assoc=left> right=expr '>>' left=expr # ArithmeticRightShift
+    | <assoc=left> right=expr '>>>' left=expr # LogicalRightShift
+    | <assoc=left> right=expr '<<' left=expr # LeftShift
 
-    | <assoc=left> expr '>' expr # GreaterThan
-    | <assoc=left> expr '<' expr # LessThan
-    | <assoc=left> expr '>=' expr # GreaterThanEquals
-    | <assoc=left> expr '<=' expr # LessThanEquals
-    | <assoc=left> expr '==' expr # Equals
-    | <assoc=left> expr '!=' expr # NotEquals
+    | <assoc=left> right=expr '>' left=expr # GreaterThan
+    | <assoc=left> right=expr '<' left=expr # LessThan
+    | <assoc=left> right=expr '>=' left=expr # GreaterThanEquals
+    | <assoc=left> right=expr '<=' left=expr # LessThanEquals
+    | <assoc=left> right=expr '==' left=expr # Equals
+    | <assoc=left> right=expr '!=' left=expr # NotEquals
 
-    | <assoc=left> expr '&' expr # And
-    | <assoc=left> expr '^' expr # Xor
-    | <assoc=left> expr '|' expr # Or
+    | <assoc=left> right=expr '&' left=expr # And
+    | <assoc=left> right=expr '^' left=expr # Xor
+    | <assoc=left> right=expr '|' left=expr # Or
 
-    | <assoc=left> expr '&&' expr # LAnd
-    | <assoc=left> expr '||' expr # LOr
+    | <assoc=left> right=expr '&&' left=expr # LAnd
+    | <assoc=left> right=expr '||' left=expr # LOr
 
-    | <assoc=right> expr '=' expr # Assign
-    | <assoc=right> expr '-=' expr # SubAssign
-    | <assoc=right> expr '+=' expr # AddAssign
-    | <assoc=right> expr '/=' expr # DivAssign
-    | <assoc=right> expr '*=' expr # MulAssign
-    | <assoc=right> expr '%=' expr # ModAssign
-    | <assoc=right> expr '>>=' expr # ArsAssign
-    | <assoc=right> expr '>>>=' expr # LrsAssign
-    | <assoc=right> expr '<<=' expr # LsAssign
-    | <assoc=right> expr '|=' expr # OrAssign
-    | <assoc=right> expr '&=' expr # AndAssign
-    | <assoc=right> expr '^=' expr # XorAssign
+    | <assoc=right> right=expr '=' left=expr # Assign
+    | <assoc=right> right=expr '-=' left=expr # SubAssign
+    | <assoc=right> right=expr '+=' left=expr # AddAssign
+    | <assoc=right> right=expr '/=' left=expr # DivAssign
+    | <assoc=right> right=expr '*=' left=expr # MulAssign
+    | <assoc=right> right=expr '%=' left=expr # ModAssign
+    | <assoc=right> right=expr '>>=' left=expr # ArsAssign
+    | <assoc=right> right=expr '>>>=' left=expr # LrsAssign
+    | <assoc=right> right=expr '<<=' left=expr # LsAssign
+    | <assoc=right> right=expr '|=' left=expr # OrAssign
+    | <assoc=right> right=expr '&=' left=expr # AndAssign
+    | <assoc=right> right=expr '^=' left=expr # XorAssign
 ;

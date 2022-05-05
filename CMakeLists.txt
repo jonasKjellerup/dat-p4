@@ -15,7 +15,7 @@ find_package(ANTLR REQUIRED)
 
 link_directories(${ANTLR4CPP_LIBS})
 
-antlr_target(Eel ${PROJECT_SOURCE_DIR}/src/eel.g4
+antlr_target(Eel ${PROJECT_SOURCE_DIR}/src/eel.g4 VISITOR
         PACKAGE eel
         OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/antlr-build)
 
@@ -33,6 +33,7 @@ target_link_libraries(compiler antlr4_static)
 
 add_executable(compiler_tests
         tests/entry.cc
+        tests/test_antlr.cc
         tests/test_symbol_table.cc)
 target_link_libraries(compiler_tests compiler)
 
