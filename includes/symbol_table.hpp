@@ -29,7 +29,7 @@ namespace eel {
     template<typename T>
     struct TablePtr {
     public:
-        using Id = typename T::Id;
+        using Id = size_t;
         /// \brief A convenience alias of the direct/raw equivalent to TablePtr type.
         using Raw = T*;
 
@@ -53,7 +53,7 @@ namespace eel {
     };
 
     struct Symbol_ {
-        using Id = uint32_t;
+        using Id = size_t;
 
         enum struct Kind {
             Variable = 1,
