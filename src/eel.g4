@@ -386,7 +386,7 @@ expr:
     | fqn '&' # ReferenceExpr
     | fqn # FqnExpr
 
-    | Read Identifier # ReadPinExpr
+    | Read fqn # ReadPinExpr
     | expr As type # CastExpr
 
     | <assoc=right> '+' left=expr # Pos

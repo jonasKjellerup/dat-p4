@@ -1,3 +1,4 @@
+
 cmake_minimum_required(VERSION 3.16.0)
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake)
 
@@ -37,5 +38,5 @@ add_executable(compiler_tests
         tests/test_symbol_table.cc)
 target_link_libraries(compiler_tests compiler)
 
-add_executable(compiler_cli src/cli.cc)
+add_executable(compiler_cli src/cli.cc src/ScopeVisitor.cc)
 target_link_libraries(compiler_cli compiler)
