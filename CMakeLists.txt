@@ -34,5 +34,5 @@ add_executable(compiler_tests
         tests/test_antlr.cc)
 target_link_libraries(compiler_tests compiler)
 
-add_executable(compiler_cli src/cli.cc)
+add_executable(compiler_cli src/cli.cc src/ScopeVisitor.cc includes/ScopeVisitor.hpp)
 target_link_libraries(compiler_cli compiler)
