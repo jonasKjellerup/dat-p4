@@ -4,16 +4,9 @@
 #include <unordered_map>
 #include <vector>
 
-// Temporary declarations of SymbolDefinitions
-namespace symbol_definitions {
-    struct Variable {};
-    struct Constant {};
-    struct Function {};
-    struct Type {};
-    struct Namespace {
+#include <symbols/forward_decl.hpp>
 
-    };
-}
+// Temporary declarations of SymbolDefinitions
 
 namespace eel {
     // Forward declarations
@@ -56,24 +49,27 @@ namespace eel {
         using Id = size_t;
 
         enum struct Kind {
-            Variable = 1,
-            Constant = 2,
-            Function = 4,
-            Type = 8,
-            Namespace = 16,
-            Indirect = 32,
+            Variable,
+            Constant,
+            Function,
+            Type,
+            Namespace,
+            Indirect,
         };
 
         struct Indirect {
             Kind kind;
             Id id;
 
-            bool is_set() const;
+            [[nodiscard]] bool is_set() const;
         };
 
         union Value {
             Indirect indirect;
-            symbol_definitions::Variable variable;
+            symbols::Variable* variable;
+            symbols::Constant* constant;
+            symbols::Namespace* namespace_;
+            symbols::Type* type;
         };
 
         Id id;
