@@ -1,4 +1,5 @@
 #include <symbol_table.hpp>
+#include <symbols/type.hpp>
 
 using namespace eel;
 
@@ -52,7 +53,20 @@ void Scope_::declare_var(const std::string& name) {
     this->symbol_map.insert(std::make_pair(name, symbol.id));
 }
 
+void Scope_::declare_type(symbols::Type* type) {
+    auto& name = type->type_target_name();
+    if (this->symbol_map.contains(name)) {
+        // TODO throw exception
+    }
 
+
+    auto& symbol = this->context->new_symbol();
+    symbol.kind = Symbol_::Kind::Type;
+    symbol.name = name;
+    symbol.value.type = type;
+
+    this->symbol_map.insert(std::make_pair(name, symbol.id));
+}
 
 
 

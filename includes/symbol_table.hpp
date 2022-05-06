@@ -12,6 +12,7 @@ namespace eel {
     // Forward declarations
     struct SymbolTable;
     struct Scope_;
+    struct Symbol_;
 
     /// \brief An indirect pointer to an object owned by a `SymbolTable`.
     /// A generic type for referencing objects stored within
@@ -45,6 +46,15 @@ namespace eel {
         SymbolTable* table{};
     };
 
+    /// \brief An indirect pointer to a `Scope_` instance.
+    /// Structure dereference is overloaded such that
+    /// it dereferences to a `Scope_` instance.
+    ///
+    /// This helps avoid invalid pointers due to
+    /// reallocation of the scope tables.
+    using Scope = TablePtr<Scope_>;
+    using Symbol = TablePtr<Symbol_>;
+
     struct Symbol_ {
         using Id = size_t;
 
@@ -66,9 +76,9 @@ namespace eel {
 
         union Value {
             Indirect indirect;
+            Scope namespace_;
             symbols::Variable* variable;
             symbols::Constant* constant;
-            symbols::Namespace* namespace_;
             symbols::Type* type;
         };
 
@@ -78,15 +88,6 @@ namespace eel {
         std::string name;
     };
 
-
-    /// \brief An indirect pointer to a `Scope_` instance.
-    /// Structure dereference is overloaded such that
-    /// it dereferences to a `Scope_` instance.
-    ///
-    /// This helps avoid invalid pointers due to
-    /// reallocation of the scope tables.
-    using Scope = TablePtr<Scope_>;
-    using Symbol = TablePtr<Symbol_>;
 
 
     struct Scope_ {
@@ -112,7 +113,7 @@ namespace eel {
         Symbol defer_symbol(std::string name, Symbol_::Kind);
         void declare_const();
         void declare_var(const std::string&);
-        void declare_type();
+        void declare_type(symbols::Type*);
         void declare_func();
         void declare_namespace();
 
