@@ -355,17 +355,17 @@ lockStmt:
 ;
 
 lockList:
-    Identifier ',' lockList
-    | Identifier trailingComma
+    fqn ',' lockList
+    | fqn trailingComma
 ;
 
 awaitStmt:
     Await expr ;
 
 pinStmt:
-    Set Identifier expr
-    | Set Identifier Mode expr
-    | Set Identifier Pin expr
+    Set fqn expr
+    | Set fqn Mode expr
+    | Set fqn Pin expr
 ;
 
 fieldInit:
@@ -384,7 +384,7 @@ expr:
     | IntegerLiteral # IntegerLiteral
     | FloatLiteral # FloatLiteral
     | BoolLiteral # BoolLiteral
-    | CharLiteral # CharLiterals
+    | CharLiteral # CharLiteral
     | StringLiteral # StringLiteral
 
     | fqn '(' params=exprList ')' # FnCallExpr
@@ -406,37 +406,25 @@ expr:
     | <assoc=right> '~' left=expr # BitComp
     | <assoc=right> '*' left=expr # Deref
 
-    | <assoc=left> right=expr op=('/'|'*'|'%') left=expr # Scaling
-    | <assoc=left> right=expr op=('+'|'-') left=expr # Additive
+    | <assoc=left> right=expr op=('/'|'*'|'%') left=expr # ScalingExpr
+    | <assoc=left> right=expr op=('+'|'-') left=expr # AdditiveExpr
+    | <assoc=left> right=expr op=('>>'|'>>>' |'<<') left=expr # ShiftingExpr
+    | <assoc=left> right=expr op=('>'|'>='|'<='|'=='|'!=') left=expr # ComparisonExpr
 
-    | <assoc=left> right=expr '>>' left=expr # ArithmeticRightShift
-    | <assoc=left> right=expr '>>>' left=expr # LogicalRightShift
-    | <assoc=left> right=expr '<<' left=expr # LeftShift
+    | <assoc=left> right=expr '&' left=expr # AndExpr
+    | <assoc=left> right=expr '^' left=expr # XorExpr
+    | <assoc=left> right=expr '|' left=expr # OrExpr
 
-    | <assoc=left> right=expr '>' left=expr # GreaterThan
-    | <assoc=left> right=expr '<' left=expr # LessThan
-    | <assoc=left> right=expr '>=' left=expr # GreaterThanEquals
-    | <assoc=left> right=expr '<=' left=expr # LessThanEquals
-    | <assoc=left> right=expr '==' left=expr # Equals
-    | <assoc=left> right=expr '!=' left=expr # NotEquals
+    | <assoc=left> right=expr '&&' left=expr # LAndExpr
+    | <assoc=left> right=expr '||' left=expr # LOrExpr
 
-    | <assoc=left> right=expr '&' left=expr # And
-    | <assoc=left> right=expr '^' left=expr # Xor
-    | <assoc=left> right=expr '|' left=expr # Or
+    | <assoc=right> right=expr '=' left=expr # AssignExpr
 
-    | <assoc=left> right=expr '&&' left=expr # LAnd
-    | <assoc=left> right=expr '||' left=expr # LOr
+    | <assoc=right> right=expr op=('-='|'+=') left=expr # AdditiveAssignExpr
+    | <assoc=right> right=expr op=('/='|'*='|'%=') left=expr # ScalingAssignExpr
+    | <assoc=right> right=expr op=('>>='|'>>>='|'<<=') left=expr # ShiftingAssignExpr
 
-    | <assoc=right> right=expr '=' left=expr # Assign
-    | <assoc=right> right=expr '-=' left=expr # SubAssign
-    | <assoc=right> right=expr '+=' left=expr # AddAssign
-    | <assoc=right> right=expr '/=' left=expr # DivAssign
-    | <assoc=right> right=expr '*=' left=expr # MulAssign
-    | <assoc=right> right=expr '%=' left=expr # ModAssign
-    | <assoc=right> right=expr '>>=' left=expr # ArsAssign
-    | <assoc=right> right=expr '>>>=' left=expr # LrsAssign
-    | <assoc=right> right=expr '<<=' left=expr # LsAssign
-    | <assoc=right> right=expr '|=' left=expr # OrAssign
-    | <assoc=right> right=expr '&=' left=expr # AndAssign
-    | <assoc=right> right=expr '^=' left=expr # XorAssign
+    | <assoc=right> right=expr '|=' left=expr # OrAssignExpr
+    | <assoc=right> right=expr '&=' left=expr # AndAssignExpr
+    | <assoc=right> right=expr '^=' left=expr # XorAssignExpr
 ;

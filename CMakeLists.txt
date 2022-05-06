@@ -26,7 +26,7 @@ add_compile_options(-Wall -Wextra -pedantic)
 
 add_library(compiler
         ${ANTLR_Eel_CXX_OUTPUTS}
-        ${ANTLR_Eel_CXX_OUTPUTS} tests/entry.cc)
+        ${ANTLR_Eel_CXX_OUTPUTS} tests/entry.cc includes/TypeVisitor.hpp)
 target_link_libraries(compiler antlr4_static)
 
 add_executable(compiler_tests
@@ -34,5 +34,5 @@ add_executable(compiler_tests
         tests/test_antlr.cc)
 target_link_libraries(compiler_tests compiler)
 
-add_executable(compiler_cli src/cli.cc src/ScopeVisitor.cc includes/ScopeVisitor.hpp)
+add_executable(compiler_cli src/cli.cc includes/ScopeVisitor.hpp)
 target_link_libraries(compiler_cli compiler)
