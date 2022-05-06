@@ -88,7 +88,11 @@ Ignore: [ \r\n] -> skip;
 
 trailingComma: ',' |;
 
-fqn: fqn '::' Identifier | Identifier;
+fqn:
+    fqn '::' Identifier     # NamespaceIdentifier
+    | fqn '.'  Identifier   # ObjectIdentifier
+    | Identifier            # Identifier
+;
 
 type:
      IntegerTypes
@@ -157,13 +161,15 @@ pinDecl:
     Pin Identifier PinType conditionBlock ';'
 ;
 
+typedIdentifier: xtype=type identifier=Identifier;
+
 variableDecl:
-    type Identifier ';'
-    | type Identifier '=' expr ';'
+    typedIdentifier ';'
+    | typedIdentifier '=' expr ';'
 ;
 
 constDecl:
-    Const type Identifier '=' expr ';'
+    Const typedIdentifier '=' expr ';'
 ;
 
 staticDecl:
@@ -171,8 +177,8 @@ staticDecl:
 ;
 
 arrayDecl:
-    type Identifier '[' ']' '=' arrayInit ';'
-    | type Identifier '[' expr ']' ('=' arrayInit)? ';'
+    typedIdentifier '[' ']' '=' arrayInit ';'
+    | typedIdentifier '[' expr ']' ('=' arrayInit)? ';'
 ;
 
 referenceDecl: type '&' Identifier ('=' expr)? ';';
@@ -226,9 +232,11 @@ paramList:
     fnParam ',' paramList
     | fnParam trailingComma
     | // Used for empty parameter list
-    ;
+;
 
-fnParam: type Identifier;
+fnParam: typedIdentifier;
+
+
 
 eventDecl:
     Event Identifier ';'
@@ -265,9 +273,9 @@ fieldList:
 ;
 
 field:
-    type Identifier ';'
-    | type Identifier '[' expr ']' ';'
-    | type ('&' | '*')? Identifier ';'
+    typedIdentifier ';'
+    | typedIdentifier'[' length=expr ']' ';'
+    | xtype=type ('&' | '*')? identifier=Identifier ';'
 ;
 
 
@@ -379,9 +387,12 @@ expr:
     | CharLiteral # CharLiterals
     | StringLiteral # StringLiteral
 
+    | fqn '(' params=exprList ')' # FnCallExpr
+    | fqn '(' '&' Self ',' params=exprList ')' # InstanceAssociatedFnCallExpr
+
     | type '{' fieldInit* '}' # StructExpr
 
-    | (Identifier '[' expr ']' | fqn '[' expr ']') # ArrayExpr
+    | fqn '[' expr ']' # ArrayExpr
     | fqn '*' # PointerExpr
     | fqn '&' # ReferenceExpr
     | fqn # FqnExpr
