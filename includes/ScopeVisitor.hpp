@@ -40,6 +40,7 @@ public:
     antlrcpp::Any visitArrayDecl (eelParser::ArrayDeclContext* ctx);
     antlrcpp::Any visitReferenceDecl (eelParser::ReferenceDeclContext* ctx);
     antlrcpp::Any visitPointerDecl (eelParser::PointerDeclContext* ctx);
+    antlrcpp::Any visitTypedIdentifier (eelParser::TypedIdentifierContext* ctx);
 
     /*
      * Type declarations
@@ -78,13 +79,24 @@ public:
     /*
      * Usage Section
      * */
-    antlrcpp::Any visitFqn (eelParser::FqnContext* ctx);
-
 
     /*
-     * TODO: Features missing in grammar
-     * TODO: Add way to call regular and associated functions
-     * TODO: Add way to access struct and union members
-     * TODO: Improve context by assigning parse trees of rules to context variables
+     * Access Expressions
      * */
+    antlrcpp::Any visitFqnExpr (eelParser::FqnExprContext* ctx);
+    antlrcpp::Any visitStructExpr (eelParser::StructExprContext* ctx);
+    antlrcpp::Any visitArrayExpr (eelParser::ArrayExprContext* ctx);
+    antlrcpp::Any visitPointerExpr (eelParser::PointerExprContext* ctx);
+    antlrcpp::Any visitReferenceExpr (eelParser::ReferenceExprContext* ctx);
+    antlrcpp::Any visitReadPinExpr (eelParser::ReadPinExprContext* ctx);
+
+    /*
+     * Function Expressions
+     * */
+
+    antlrcpp::Any visitFnCallExpr (eelParser::FnCallExprContext* ctx);
+    antlrcpp::Any visitInstanceAssociatedFnCallExpr (eelParser::InstanceAssociatedFnCallExprContext* ctx);
+    antlrcpp::Any visitExprList (eelParser::ExprListContext* ctx);
+
+
 };
