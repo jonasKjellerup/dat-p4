@@ -141,7 +141,7 @@ void Scope_::declare_namespace(const std::string& name) {
     symbol.name = name;
     symbol.value.namespace_ = this->context->derive_scope(this);
 
-    this->symbol_map.insert(std::make_pair(name, symbol.id))
+    this->symbol_map.insert(std::make_pair(name, symbol.id));
 }
 
 /*
