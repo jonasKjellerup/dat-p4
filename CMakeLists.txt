@@ -1,4 +1,3 @@
-
 cmake_minimum_required(VERSION 3.16.0)
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake)
 
@@ -26,11 +25,15 @@ add_compile_options(-Wall -Wextra -pedantic)
 
 add_library(compiler
         ${ANTLR_Eel_CXX_OUTPUTS}
-        ${ANTLR_Eel_CXX_OUTPUTS} tests/entry.cc includes/TypeVisitor.hpp)
+        ${ANTLR_Eel_CXX_OUTPUTS}
+        src/parsing.cc
+        src/symbol_table.cc
+        src/symbols/type.cc)
 target_link_libraries(compiler antlr4_static)
 
 add_executable(compiler_tests
         tests/entry.cc
+        tests/test_symbol_table.cc
         tests/test_antlr.cc)
 target_link_libraries(compiler_tests compiler)
 
