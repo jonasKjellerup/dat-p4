@@ -161,7 +161,7 @@ pinDecl:
     Pin Identifier PinType conditionBlock ';'
 ;
 
-typedIdentifier: xtype=type identifier=Identifier;
+typedIdentifier: type Identifier;
 
 variableDecl:
     typedIdentifier ';'
@@ -274,8 +274,8 @@ fieldList:
 
 field:
     typedIdentifier ';'
-    | typedIdentifier'[' length=expr ']' ';'
-    | xtype=type ('&' | '*')? identifier=Identifier ';'
+    | typedIdentifier'[' expr ']' ';'
+    | type ('&' | '*')? Identifier ';'
 ;
 
 

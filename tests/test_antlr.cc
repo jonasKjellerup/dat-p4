@@ -2,6 +2,9 @@
 #include <string>
 #include "antlr4-runtime.h"
 #include "eelLexer.h"
+#include "eelParser.h"
+#include "ScopeVisitor.hpp"
+
 using namespace std;
 using namespace antlr4;
 using namespace eel;
@@ -87,4 +90,15 @@ TEST_CASE("Comments", "[Lexer]" ){
     GET_TOKENS("// test duaiud//9qpoqensaiudbasda\n //test \n /* very \n  multi \n line \n comments */", &source)
     vector<size_t> expected = {};
     compareTokens(&source, &expected);
+}
+
+TEST_CASE("T","T") {
+    ANTLRInputStream input("const u8 t = 9;const u16 p = 69;");
+    eelLexer lexer(&input); \
+    CommonTokenStream tokens(&lexer);
+    tokens.fill();
+    eelParser parser(&tokens);
+    auto tree = parser.program();
+    ScopeVisitor scope;
+    scope.visitProgram(tree);
 }
