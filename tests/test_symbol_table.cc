@@ -1,6 +1,11 @@
 #include <catch.hpp>
 #include <symbol_table.hpp>
+#include <symbols/type.hpp>
 #include <string>
+
+void prepare_test_table(eel::SymbolTable& table) {
+    eel::symbols::Primitive::register_primitives(table.root_scope);
+}
 
 /*
  * Tests finding symbols across scope boundaries.
@@ -15,15 +20,19 @@
  * }
  */
 TEST_CASE( "symbol lookup propagates into parent scope", "[symbol_table]" ) {
-    eel::SymbolTable table;
+    using namespace eel;
+    SymbolTable table;
+    prepare_test_table(table);
+
     auto scope_a = table.derive_scope();
+    auto type = table.root_scope->find("u8");
 
     std::string symbol_name = "symbolA";
-    table.root_scope->declare_var(symbol_name);
+    table.root_scope->declare_var(type, symbol_name);
     auto symbol = scope_a->find(symbol_name);
 
     REQUIRE_FALSE(symbol.is_nullptr());
-    REQUIRE(symbol->kind == eel::Symbol_::Kind::Variable);
+    REQUIRE(symbol->kind == Symbol_::Kind::Variable);
 }
 
 /*
@@ -39,14 +48,16 @@ TEST_CASE( "symbol lookup propagates into parent scope", "[symbol_table]" ) {
  */
 TEST_CASE( "symbol shadows similar symbol from outer scope", "[symbol_table]" ) {
     eel::SymbolTable table;
+    prepare_test_table(table);
 
+    auto type = table.root_scope->find("u8");
     std::string symbol_name = "symbolA";
-    table.root_scope->declare_var(symbol_name);
+    table.root_scope->declare_var(type, symbol_name);
 
     auto outer_symbol = table.root_scope->find(symbol_name);
 
     auto inner_scope = table.derive_scope();
-    inner_scope->declare_var(symbol_name);
+    inner_scope->declare_var(type, symbol_name);
 
     auto inner_symbol = inner_scope->find(symbol_name);
 
@@ -70,18 +81,20 @@ TEST_CASE( "symbol shadows similar symbol from outer scope", "[symbol_table]" ) 
  */
 TEST_CASE( "static declaration resolves expected symbol", "[symbol_table]" ) {
     eel::SymbolTable table;
+    prepare_test_table(table);
 
     using Kind = eel::Symbol_::Kind;
 
     std::string symbol_name = "symbolA";
     auto deferred_symbol = table.root_scope->defer_symbol(symbol_name, Kind::Variable);
+    auto type = table.root_scope->find("u8");
 
     REQUIRE(!deferred_symbol.is_nullptr());
     REQUIRE(deferred_symbol->kind == Kind::Indirect);
     REQUIRE(deferred_symbol->value.indirect.kind == Kind::Variable);
     REQUIRE_FALSE(deferred_symbol->value.indirect.is_set());
 
-    table.root_scope->declare_var(symbol_name);
+    table.root_scope->declare_var(type, symbol_name, true);
     table.try_resolve_unresolved();
 
     REQUIRE(deferred_symbol->value.indirect.is_set());

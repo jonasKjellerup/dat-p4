@@ -59,6 +59,7 @@ namespace eel {
         using Id = size_t;
 
         enum struct Kind {
+            None,
             Variable,
             Constant,
             Function,
@@ -75,16 +76,25 @@ namespace eel {
         };
 
         union Value {
+            struct None {};
+            None none {};
+
             Indirect indirect;
             Scope namespace_;
+
+            // TODO: figure out how we want to handle
+            //       deallocation of these pointers
             symbols::Variable* variable;
             symbols::Constant* constant;
+
+            // NOTE: can't naively deallocate this one since
+            //       some types (primitives) have static storage
             symbols::Type* type;
         };
 
         Id id;
         Kind kind;
-        Value value;
+        Value value {};
         std::string name;
     };
 
@@ -105,17 +115,32 @@ namespace eel {
         ///          `nullptr` is returned otherwise.
         Symbol find(const std::string&);
 
+        /// \brief Find a symbol by name in the scope without inspecting precursors.
+        /// \returns A pointer to the symbol if found.
+        ///          `nullptr` is returned otherwise.
+        /// This is mainly intended for use when trying to access
+        /// members of an object (a.x) or namespace (a::x).
+        Symbol find_member(const std::string&);
+
         /// \brief Defers the declaration of a symbol for later.
         /// This is used whenever a symbol that has yet to be
         /// declared is to used. This results in an indirect symbol
-        /// which will at some point (assuming that the correct symbol
+        /// which will at some point (assuming that th
+        /// e correct symbol
         /// is declared) point to the expected symbol.
         Symbol defer_symbol(std::string name, Symbol_::Kind);
-        void declare_const();
-        void declare_var(const std::string&);
+
+        void declare_var(Symbol& type, const std::string& name, bool is_static = false);
+        // TODO define var decl with default value
+        // void declare_var(Symbol& type, const std::string& name, Expr init, bool is_static = false);
+
+        struct ConstExpr {}; // TODO replace with proper type
+        void declare_const(Symbol& type, const std::string& name, ConstExpr expr);
+
+        /// \brief Registers an already existing type.
         void declare_type(symbols::Type*);
         void declare_func();
-        void declare_namespace();
+        void declare_namespace(const std::string& name);
 
         bool is_root();
     private:

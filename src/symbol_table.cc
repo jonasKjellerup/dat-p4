@@ -1,5 +1,6 @@
 #include <symbol_table.hpp>
 #include <symbols/type.hpp>
+#include <symbols/variable.hpp>
 
 using namespace eel;
 
@@ -40,35 +41,6 @@ Scope_::operator Scope() {
 bool Scope_::is_root() {
     return this->parent.is_nullptr();
 }
-
-void Scope_::declare_var(const std::string& name) {
-    if (this->symbol_map.contains(name)) {
-        // TODO throw exception
-    }
-
-    Symbol_& symbol = this->context->new_symbol();
-    symbol.kind = Symbol_::Kind::Variable;
-    symbol.name = name;
-
-    this->symbol_map.insert(std::make_pair(name, symbol.id));
-}
-
-void Scope_::declare_type(symbols::Type* type) {
-    auto& name = type->type_target_name();
-    if (this->symbol_map.contains(name)) {
-        // TODO throw exception
-    }
-
-
-    auto& symbol = this->context->new_symbol();
-    symbol.kind = Symbol_::Kind::Type;
-    symbol.name = name;
-    symbol.value.type = type;
-
-    this->symbol_map.insert(std::make_pair(name, symbol.id));
-}
-
-
 
 
 /*
@@ -121,6 +93,56 @@ bool Symbol_::Indirect::is_set() const {
     return this->id > 0;
 }
 
+/*
+ * Symbol declaration
+ */
+
+void Scope_::declare_var(Symbol& type, const std::string& name, bool is_static) {
+    if (this->symbol_map.contains(name)) {
+        // TODO throw exception
+    }
+
+    auto& symbol = this->context->new_symbol();
+    symbol.kind = Symbol_::Kind::Variable;
+    symbol.name = name;
+
+    auto var = new symbols::Variable;
+    var->type = type;
+    var->is_static = is_static;
+    var->has_value = false;
+
+    symbol.value.variable = var;
+
+    this->symbol_map.insert(std::make_pair(name, symbol.id));
+}
+
+void Scope_::declare_type(symbols::Type* type) {
+    auto& name = type->type_target_name();
+    if (this->symbol_map.contains(name)) {
+        // TODO throw exception
+    }
+
+
+    auto& symbol = this->context->new_symbol();
+    symbol.kind = Symbol_::Kind::Type;
+    symbol.name = name;
+    symbol.value.type = type;
+
+    this->symbol_map.insert(std::make_pair(name, symbol.id));
+}
+
+void Scope_::declare_namespace(const std::string& name) {
+    if (this->symbol_map.contains(name)) {
+        // TODO throw exception
+    }
+
+    auto& symbol = this->context->new_symbol();
+    symbol.kind = Symbol_::Kind::Type;
+    symbol.name = name;
+    symbol.value.namespace_ = this->context->derive_scope(this);
+
+    this->symbol_map.insert(std::make_pair(name, symbol.id))
+}
 
 /*
  * Symbol resolution
@@ -133,6 +155,13 @@ Symbol Scope_::find(const std::string& name) {
             return this->parent->find(name);
         else return {};
     }
+    return this->context->get_symbol(s->second);
+}
+
+Symbol Scope_::find_member(const std::string& name) {
+    auto s = this->symbol_map.find(name);
+    if (s == this->symbol_map.end())
+        return {};
     return this->context->get_symbol(s->second);
 }
 
@@ -156,11 +185,11 @@ Symbol Scope_::defer_symbol(std::string name, Symbol_::Kind kind) {
     s.value.indirect = {kind, 0};
 
     this->context->report_unresolved_symbol({
-        kind,
-        this->id,
-        s.id,
-        name,
-    });
+                                                    kind,
+                                                    this->id,
+                                                    s.id,
+                                                    name,
+                                            });
 
     return this->context->get_symbol(s.id);
 }
@@ -176,15 +205,10 @@ static bool try_resolve(const UnresolvedSymbol& symbol, SymbolTable* context) {
     auto scope = context->get_scope(symbol.origin_scope);
     auto matching_symbol = scope->find(symbol.name);
 
-    resolved = !matching_symbol.is_nullptr()
-               && matching_symbol->kind == symbol.expected_kind;
-    // TODO: Include check that the symbol is static.
-    //       Any symbol that is non-static that was not
-    //       resolved originally will per definition be
-    //       inaccessible in the given context.
-    //       The only reason why this is not done yet
-    //       is the fact that symbol definitions are
-    //       yet to be implemented.
+    resolved = !matching_symbol.is_nullptr() // was a matching symbol found
+               && matching_symbol->kind == symbol.expected_kind // is it of same kind
+               && (symbol.expected_kind != Symbol_::Kind::Variable // is it not a variable
+                   || matching_symbol->value.variable->is_static); // or is it static
 
     if (resolved) {
         auto indirection_symbol = context->get_symbol(symbol.indirection_symbol);

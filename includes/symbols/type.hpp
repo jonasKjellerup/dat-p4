@@ -19,9 +19,9 @@ namespace eel::symbols {
         explicit Type(Kind kind);
 
         /// \brief Determines the name used in the output code.
-        virtual const std::string& type_target_name() const = 0;
+        [[nodiscard]] virtual const std::string& type_target_name() const = 0;
         /// \brief Determines the name used in the source code.
-        virtual const std::string& type_source_name() const = 0;
+        [[nodiscard]] virtual const std::string& type_source_name() const = 0;
 
         Kind kind;
 
@@ -29,8 +29,8 @@ namespace eel::symbols {
 
     struct Primitive final : public Type {
     public:
-        explicit Primitive(const std::string& global_name) noexcept;
-        Primitive(const std::string& source_name, const std::string& target_name) noexcept;
+        explicit Primitive(const std::string&& global_name) noexcept;
+        Primitive(const std::string&& source_name, const std::string&& target_name) noexcept;
 
         static Primitive u8;
         static Primitive u16;
@@ -55,8 +55,8 @@ namespace eel::symbols {
         [[nodiscard]] const std::string& type_source_name() const override;
 
     private:
-        const std::string& source_name;
-        const std::string& target_name;
+        std::string source_name;
+        std::string target_name;
     };
 
     struct Struct : public Type { // TODO

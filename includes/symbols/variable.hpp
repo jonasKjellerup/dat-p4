@@ -7,7 +7,7 @@ namespace eel::symbols {
         struct Value {};
     public:
          Symbol type;
-         Value value;
+         Value value; // TODO replace with expression
          bool has_value;
          bool is_static;
     };

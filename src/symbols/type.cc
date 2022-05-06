@@ -1,6 +1,7 @@
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wunknown-pragmas"
 #pragma ide diagnostic ignored "cert-err58-cpp"
+
 #include <symbols/type.hpp>
 
 using namespace eel::symbols;
@@ -15,10 +16,13 @@ Struct::Struct() : Type(Type::Kind::Struct) {}
  * Primitives
  */
 
-Primitive::Primitive(const std::string& global_name) noexcept
-        : Primitive(global_name, global_name) {}
+Primitive::Primitive(const std::string&& global_name) noexcept
+        : Type(Type::Kind::Primitive) {
+    this->source_name = std::string(global_name);
+    this->target_name = global_name;
+}
 
-Primitive::Primitive(const std::string& source_name, const std::string& target_name) noexcept
+Primitive::Primitive(const std::string&& source_name, const std::string&& target_name) noexcept
         : Type(Type::Kind::Primitive),
           source_name(source_name),
           target_name(target_name) {}
