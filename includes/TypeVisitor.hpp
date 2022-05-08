@@ -1,13 +1,21 @@
 #pragma once
 #include <eelBaseVisitor.h>
 #include <antlr4-runtime.h>
+#include <symbol_table.hpp>
+#include <symbols/type.hpp>
 using namespace eel;
 
 class TypeVisitor : eelBaseVisitor {
 public:
-    /*
-     * TODO: Add reference to scope
-     * */
+
+    SymbolTable* table;
+    Scope current_scope;
+    Scope previous_scope;
+    explicit TypeVisitor(SymbolTable* _table) {
+        table = _table;
+        symbols::Primitive::register_primitives(table->root_scope);
+        current_scope = previous_scope = table->root_scope;
+    }
     /*
      * This rule is here to act as a starting point for the traversal of the parse tree.
      * */

@@ -158,7 +158,7 @@ setupDecl:
 ;
 
 pinDecl:
-    Pin Identifier PinType conditionBlock ';'
+    Pin Identifier PinType '(' expr ')' ';'
 ;
 
 typedIdentifier: type Identifier;
@@ -345,8 +345,8 @@ forStmt:
 ;
 
 forEachStmt:
-    Foreach '(' Identifier In Identifier ')'
-    | Foreach '(' Identifier ',' Identifier In Identifier ')'
+    Foreach '(' x1=Identifier In x3=Identifier ')'
+    | Foreach '(' x1=Identifier ',' x2=Identifier In x3=Identifier ')'
 ;
 
 
