@@ -4,6 +4,7 @@
 #include "eelLexer.h"
 #include "eelParser.h"
 #include "ScopeVisitor.hpp"
+#include "TypeVisitor.hpp"
 
 using namespace std;
 using namespace antlr4;
@@ -93,12 +94,15 @@ TEST_CASE("Comments", "[Lexer]" ){
 }
 
 TEST_CASE("T","T") {
-    ANTLRInputStream input("const u8 t = 9;const u16 p = 69;");
-    eelLexer lexer(&input); \
+    ANTLRInputStream input("setup{const u8 t = 9;const u16 p = 69; const custom z = 69;foreach(x,y in p){}}");
+    eelLexer lexer(&input);
     CommonTokenStream tokens(&lexer);
     tokens.fill();
     eelParser parser(&tokens);
     auto tree = parser.program();
-    ScopeVisitor scope;
-    scope.visitProgram(tree);
+    SymbolTable table;
+    ScopeVisitor scope_visitor(&table);
+    scope_visitor.visitProgram(tree);
+    TypeVisitor type_visitor(&table);
+    cout << "test" << endl;
 }

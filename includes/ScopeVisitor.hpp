@@ -1,13 +1,27 @@
 #pragma once
 #include <eelBaseVisitor.h>
 #include <antlr4-runtime.h>
+#include <symbol_table.hpp>
+#include <symbols/type.hpp>
+#include <symbols/variable.hpp>
 using namespace eel;
-
+struct TypedIdentifier {
+    Symbol type;
+    std::string identifier;
+};
 class ScopeVisitor : eelBaseVisitor {
 public:
     /*
      * TODO: Might need to add some fields for storing additional context
      * */
+    SymbolTable* table;
+    Scope current_scope;
+    Scope previous_scope;
+    explicit ScopeVisitor(SymbolTable* _table) {
+        table = _table;
+        symbols::Primitive::register_primitives(table->root_scope);
+        current_scope = previous_scope = table->root_scope;
+    }
 
     /*
      * This rule is here to act as a starting point for the traversal of the parse tree.
@@ -20,19 +34,10 @@ public:
      * Declaration Section
      * */
 
-    antlrcpp::Any visitStmtBlock (eelParser::StmtBlockContext* ctx) override {
-        return visitChildren(ctx);
-    }
 
     /*
      * Top level declarations
      * */
-    antlrcpp::Any visitLoopDecl (eelParser::LoopDeclContext* ctx) override {
-            return visitChildren(ctx);
-    }
-    antlrcpp::Any visitSetupDecl (eelParser::SetupDeclContext* ctx) override {
-        return visitChildren(ctx);
-    }
     antlrcpp::Any visitIncludeDirective (eelParser::IncludeDirectiveContext* ctx) override {
         return visitChildren(ctx);
     }
@@ -47,19 +52,37 @@ public:
      * Variable declarations
      * */
     antlrcpp::Any visitVariableDecl (eelParser::VariableDeclContext* ctx) override {
-        return visitChildren(ctx);
+        auto res = any_cast<TypedIdentifier>(visit(ctx->typedIdentifier()));
+        current_scope->declare_var(res.type, res.identifier);
+        return res;
     }
     antlrcpp::Any visitConstDecl (eelParser::ConstDeclContext* ctx) override {
-        return visitChildren(ctx);
+        auto res = any_cast<TypedIdentifier>(visit(ctx->typedIdentifier()));
+        current_scope->declare_const(res.type, res.identifier, {});
+        return {};
     }
     antlrcpp::Any visitStaticDecl (eelParser::StaticDeclContext* ctx) override {
-        return visitChildren(ctx);
+        auto res = any_cast<TypedIdentifier>(visit(ctx->variableDecl()));
+        current_scope->declare_var(res.type, res.identifier, true);
+        return {};
     }
     antlrcpp::Any visitPinDecl (eelParser::PinDeclContext* ctx) override {
-        return visitChildren(ctx);
+        auto identifier = ctx->Identifier()->getText();
+        auto _type = ctx->PinType()->getText();
+        auto type = current_scope->find(_type);
+        if (type.is_nullptr()){
+            current_scope->defer_symbol(_type, Symbol_::Kind::Type);
+        }
+        if (type->kind != Symbol_::Kind::Type){
+            std::cout << "Symbol is not a type" << std::endl;
+        }
+        current_scope->declare_var(type, identifier);
+        return {};
     }
+
     antlrcpp::Any visitArrayDecl (eelParser::ArrayDeclContext* ctx) override {
-        return visitChildren(ctx);
+        auto res = any_cast<TypedIdentifier>(visit(ctx->typedIdentifier()));
+        return {};
     }
     antlrcpp::Any visitReferenceDecl (eelParser::ReferenceDeclContext* ctx) override {
         return visitChildren(ctx);
@@ -67,8 +90,18 @@ public:
     antlrcpp::Any visitPointerDecl (eelParser::PointerDeclContext* ctx) override {
         return visitChildren(ctx);
     }
+
     antlrcpp::Any visitTypedIdentifier (eelParser::TypedIdentifierContext* ctx) override {
-        return visitChildren(ctx);
+        auto identifier = ctx->Identifier()->getText();
+        auto _type = ctx->type()->getText();
+        auto type = current_scope->find(_type);
+        if (type.is_nullptr()){
+            current_scope->defer_symbol(_type, Symbol_::Kind::Type);
+        } else if (type->kind != Symbol_::Kind::Type){
+            std::cout << "Symbol is not a type" << std::endl;
+            // TODO: Throw error
+        }
+        return TypedIdentifier{ type, identifier};
     }
 
     /*
@@ -179,5 +212,36 @@ public:
         return visitChildren(ctx);
     }
 
+    /*
+     * Statements
+     * */
+    antlrcpp::Any visitStmtBlock (eelParser::StmtBlockContext* ctx) override {
+        previous_scope = current_scope;
+        current_scope = table->derive_scope();
+        return visitChildren(ctx);
+    }
+    antlrcpp::Any visitForEachStmt (eelParser::ForEachStmtContext* ctx) override {
+        auto array_symbol = current_scope->find(ctx->x3->getText());
+        if(array_symbol->kind != Symbol_::Kind::Variable){
+            //TODO: Throw error
+        }
+        symbols::Variable* array = array_symbol->value.variable;
+        auto type = array->type;
+        if(type->kind != Symbol_::Kind::Type){
+            //TODO: Throw error
+        } else {
+            current_scope->declare_var(type, ctx->x1->getText());
+        }
+        if(ctx->x2 != nullptr){
+            // TODO: Do constant analysis to get the array size and choose a appropriate size to increase performance.
+            auto _type = current_scope->find("u64");
+            if(_type->kind != Symbol_::Kind::Type){
+                // TODO: Throw error
+            } else{
+                current_scope->declare_var(_type, ctx->x2->getText());
+            }
+        }
+        return {};
+    }
 
 };

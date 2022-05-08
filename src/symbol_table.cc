@@ -117,6 +117,25 @@ void Scope_::declare_var(Symbol& type, const std::string& name, bool is_static) 
     this->symbol_map.insert(std::make_pair(name, symbol.id));
 }
 
+void Scope_::declare_const(Symbol& type, const std::string& name, ConstExpr expr) {
+    if (this->symbol_map.contains(name)) {
+        // TODO throw exception
+    }
+
+    auto& symbol = this->context->new_symbol();
+    symbol.kind = Symbol_::Kind::Variable;
+    symbol.name = name;
+
+    auto var = new symbols::Variable;
+    var->type = type;
+    var->is_static = false;
+    var->has_value = false;
+
+    symbol.value.variable = var;
+
+    this->symbol_map.insert(std::make_pair(name, symbol.id));
+}
+
 void Scope_::declare_type(symbols::Type* type) {
     auto& name = type->type_target_name();
     if (this->symbol_map.contains(name)) {
