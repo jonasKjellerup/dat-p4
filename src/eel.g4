@@ -173,7 +173,8 @@ constDecl:
 ;
 
 staticDecl:
-    Static variableDecl
+    Static typedIdentifier ';'
+    |Static typedIdentifier '=' expr ';'
 ;
 
 arrayDecl:

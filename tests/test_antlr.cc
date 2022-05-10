@@ -3,8 +3,8 @@
 #include "antlr4-runtime.h"
 #include "eelLexer.h"
 #include "eelParser.h"
-#include "ScopeVisitor.hpp"
-#include "TypeVisitor.hpp"
+#include "Visitors/ScopeVisitor.hpp"
+#include "Visitors/TypeVisitor.hpp"
 
 using namespace std;
 using namespace antlr4;
@@ -94,7 +94,7 @@ TEST_CASE("Comments", "[Lexer]" ){
 }
 
 TEST_CASE("T","T") {
-    ANTLRInputStream input("setup{const u8 t = 9;const u16 p = 69; const custom z = 69;foreach(x,y in p){}}");
+    ANTLRInputStream input("setup{const u8 t = 9;\nconst u16 p = 69.0*2+t;\nconst custom z = 69;\nforeach(x,y in p){}}");
     eelLexer lexer(&input);
     CommonTokenStream tokens(&lexer);
     tokens.fill();
@@ -104,5 +104,5 @@ TEST_CASE("T","T") {
     ScopeVisitor scope_visitor(&table);
     scope_visitor.visitProgram(tree);
     TypeVisitor type_visitor(&table);
-    cout << "test" << endl;
+    type_visitor.visitProgram(tree);
 }

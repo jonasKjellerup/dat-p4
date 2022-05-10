@@ -1,6 +1,7 @@
 #include <symbol_table.hpp>
 #include <symbols/type.hpp>
 #include <symbols/variable.hpp>
+#include <symbols/constant.hpp>
 #include <symbols/event.hpp>
 
 using namespace eel;
@@ -126,12 +127,10 @@ void Scope_::declare_const(Symbol& type, const std::string& name, ConstExpr expr
     symbol.kind = Symbol_::Kind::Variable;
     symbol.name = name;
 
-    auto var = new symbols::Variable;
+    auto var = new symbols::Constant;
     var->type = type;
-    var->is_static = false;
-    var->has_value = false;
 
-    symbol.value.variable = var;
+    symbol.value.constant = var;
 
     this->symbol_map.insert(std::make_pair(name, symbol.id));
 }
