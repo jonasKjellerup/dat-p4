@@ -122,11 +122,15 @@ void Scope_::declare_type(symbols::Type* type) {
         // TODO throw exception
     }
 
-
     auto& symbol = this->context->new_symbol();
     symbol.kind = Symbol_::Kind::Type;
     symbol.name = name;
     symbol.value.type = type;
+
+    if (type->kind == symbols::Type::Kind::Primitive) {
+        auto p = dynamic_cast<symbols::Primitive*>(type);
+        p->id = symbol.id;
+    }
 
     this->symbol_map.insert(std::make_pair(name, symbol.id));
 }

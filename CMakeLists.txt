@@ -28,7 +28,7 @@ add_library(compiler
         ${ANTLR_Eel_CXX_OUTPUTS}
         src/parsing.cc
         src/symbol_table.cc
-        src/symbols/type.cc)
+        src/symbols/type.cc src/symbols/event.cpp)
 target_link_libraries(compiler antlr4_static)
 
 add_executable(compiler_tests
