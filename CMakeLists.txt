@@ -28,7 +28,7 @@ add_library(compiler
         ${ANTLR_Eel_CXX_OUTPUTS}
         src/parsing.cc
         src/symbol_table.cc
-        src/symbols/type.cc)
+        src/symbols/type.cc includes/error.hpp src/symbols/error.cc)
 target_link_libraries(compiler antlr4_static)
 
 add_executable(compiler_tests
@@ -37,5 +37,5 @@ add_executable(compiler_tests
         tests/test_antlr.cc)
 target_link_libraries(compiler_tests compiler)
 
-add_executable(compiler_cli src/cli.cc includes/ScopeVisitor.hpp)
+add_executable(compiler_cli src/cli.cc includes/Visitors/ScopeVisitor.hpp)
 target_link_libraries(compiler_cli compiler)
