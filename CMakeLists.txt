@@ -1,4 +1,3 @@
-
 cmake_minimum_required(VERSION 3.16.0)
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake)
 
@@ -29,7 +28,9 @@ add_library(compiler
         ${ANTLR_Eel_CXX_OUTPUTS}
         src/parsing.cc
         src/symbol_table.cc
-        src/symbols/type.cc src/symbols/event.cpp)
+        src/symbols/type.cc
+        src/symbols/error.cc
+        ssrc/symbols/event.cpp)
 target_link_libraries(compiler antlr4_static)
 
 add_executable(compiler_tests
