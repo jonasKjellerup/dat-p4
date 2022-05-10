@@ -12,7 +12,7 @@ void print(Error* error, const std::string& message){
     std::cout << error->source << std::endl;
     std::cout << std::string(error->location.c - error->offset, ' ') << "^~ ";
     std::cout <<  message << error->expected;
-    std::cout << " on Line: " << error->location.l << " Char: " << error->location.c;
+    std::cout << " on Line: " << error->location.l << " Column: " << error->location.c;
     std::cout << std::endl;
 }
 
@@ -23,6 +23,9 @@ void Error::print() {
             break;
         case Error::UndefinedType:
             ::print(this,"Undefined type");
+            break;
+        case Error::ExpectedVariable:
+            ::print(this, "Expected Variable");
             break;
         default:
             ::print(this,"Unknown error");

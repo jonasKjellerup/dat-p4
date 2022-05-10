@@ -13,6 +13,7 @@ public:
     enum Kind {
         None,
         TypeMisMatch,
+        ExpectedVariable,
         UndefinedType,
     };
     explicit Error();
