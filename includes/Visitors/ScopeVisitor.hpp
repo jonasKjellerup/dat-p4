@@ -74,8 +74,7 @@ public:
         auto type = current_scope->find(_type);
         if (type.is_nullptr()){
             current_scope->defer_symbol(_type, Symbol_::Kind::Type);
-        }
-        if (type->kind != Symbol_::Kind::Type){
+        }else if (type->kind != Symbol_::Kind::Type){
             std::cout << "Symbol is not a type" << std::endl;
         }
         current_scope->declare_var(type, identifier);

@@ -276,6 +276,15 @@ public:
 
     antlrcpp::Any visitPinDecl (eelParser::PinDeclContext* ctx) override {
         auto expr = std::any_cast<Type>(visit(ctx->expr()));
+        auto u8 = Type(table->root_scope->find("u8"), nullptr);
+        auto offset = ctx->start->getCharPositionInLine();
+        if(!type_equals(u8, expr)){
+            new_error(Error::TypeMisMatch,
+                      expr.token,
+                      ctx,
+                      offset,
+                      u8.get_type());
+        }
         return visitChildren(ctx);
     }
     antlrcpp::Any visitArrayDecl (eelParser::ArrayDeclContext* ctx) override {

@@ -94,7 +94,7 @@ TEST_CASE("Comments", "[Lexer]" ){
 }
 
 TEST_CASE("T","T") {
-    ANTLRInputStream input("setup{u8 o = 0;\n o = 4;}");
+    ANTLRInputStream input("setup{u16 t = 2; pin test analog(t)}");
     eelLexer lexer(&input);
     CommonTokenStream tokens(&lexer);
     tokens.fill();
