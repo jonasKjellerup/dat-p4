@@ -222,8 +222,8 @@ public:
         previous_scope = current_scope;
         current_scope = table->derive_scope();
         visitChildren(ctx);
-        //current_scope = previous_scope;
-        //previous_scope = _previous_scope;
+        current_scope = previous_scope;
+        previous_scope = _previous_scope;
         return {};
     }
     antlrcpp::Any visitForEachStmt (eelParser::ForEachStmtContext* ctx) override {
