@@ -1,14 +1,16 @@
 #pragma once
-#include <eelBaseVisitor.h>
-#include <antlr4-runtime.h>
-#include <symbol_table.hpp>
-#include <symbols/type.hpp>
-#include <symbols/variable.hpp>
+#include "eelBaseVisitor.h"
+#include "antlr4-runtime.h"
+#include "symbol_table.hpp"
+#include "symbols/type.hpp"
+#include "symbols/variable.hpp"
 using namespace eel;
 struct TypedIdentifier {
     Symbol type;
     std::string identifier;
 };
+
+
 class ScopeVisitor : eelBaseVisitor {
 public:
     /*
@@ -54,7 +56,7 @@ public:
     antlrcpp::Any visitVariableDecl (eelParser::VariableDeclContext* ctx) override {
         auto res = any_cast<TypedIdentifier>(visit(ctx->typedIdentifier()));
         current_scope->declare_var(res.type, res.identifier);
-        return res;
+        return {};
     }
     antlrcpp::Any visitConstDecl (eelParser::ConstDeclContext* ctx) override {
         auto res = any_cast<TypedIdentifier>(visit(ctx->typedIdentifier()));
@@ -62,7 +64,7 @@ public:
         return {};
     }
     antlrcpp::Any visitStaticDecl (eelParser::StaticDeclContext* ctx) override {
-        auto res = any_cast<TypedIdentifier>(visit(ctx->variableDecl()));
+        auto res = any_cast<TypedIdentifier>(visit(ctx->typedIdentifier()));
         current_scope->declare_var(res.type, res.identifier, true);
         return {};
     }
@@ -218,7 +220,9 @@ public:
     antlrcpp::Any visitStmtBlock (eelParser::StmtBlockContext* ctx) override {
         previous_scope = current_scope;
         current_scope = table->derive_scope();
-        return visitChildren(ctx);
+        visitChildren(ctx);
+        current_scope = previous_scope;
+        return {};
     }
     antlrcpp::Any visitForEachStmt (eelParser::ForEachStmtContext* ctx) override {
         auto array_symbol = current_scope->find(ctx->x3->getText());
