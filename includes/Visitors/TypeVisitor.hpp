@@ -17,7 +17,6 @@ using namespace antlr4;
 class TypeVisitor : eelBaseVisitor {
 private:
     struct Type {
-
         enum Kind{
             Undefined,
             NotAType,
@@ -276,6 +275,7 @@ public:
     }
 
     antlrcpp::Any visitPinDecl (eelParser::PinDeclContext* ctx) override {
+        auto expr = std::any_cast<Type>(visit(ctx->expr()));
         return visitChildren(ctx);
     }
     antlrcpp::Any visitArrayDecl (eelParser::ArrayDeclContext* ctx) override {
@@ -287,6 +287,7 @@ public:
     antlrcpp::Any visitPointerDecl (eelParser::PointerDeclContext* ctx) override {
         return visitChildren(ctx);
     }
+
     antlrcpp::Any visitTypedIdentifier (eelParser::TypedIdentifierContext* ctx) override {
         auto type_name = ctx->type()->getText();
         auto type = current_scope->find(type_name);
