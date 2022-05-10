@@ -94,7 +94,7 @@ TEST_CASE("Comments", "[Lexer]" ){
 }
 
 TEST_CASE("T","T") {
-    ANTLRInputStream input("setup{const u8 t = 9;\nconst u16 p = 69.0*2+t;\nconst custom z = 69;\nforeach(x,y in p){}}");
+    ANTLRInputStream input("setup{u8 o = 0;\n o = 4;}");
     eelLexer lexer(&input);
     CommonTokenStream tokens(&lexer);
     tokens.fill();

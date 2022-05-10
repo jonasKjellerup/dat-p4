@@ -10,6 +10,7 @@
 #include "symbol_table.hpp"
 #include "symbols/type.hpp"
 #include "error.hpp"
+
 using namespace eel;
 using namespace antlr4;
 
@@ -32,11 +33,13 @@ private:
             Symbol symbol;
             Kind literal;
         };
+
         explicit Type(){
             value = { .literal = Kind::None};
             token = nullptr;
             is_literal = true;
         }
+
         explicit Type(Kind _value, Token* _token){
             value = { .literal = _value};
             token = _token;
@@ -115,6 +118,9 @@ private:
         Type kind = a.is_literal ? a : b;
         Type symbol = a.is_literal ? b : a;
         if(kind.is_literal && !symbol.is_literal){
+            if(symbol.symbol()->kind != Symbol_::Kind::Type) {
+                symbol.value.symbol = symbol.symbol()->value.variable->type;
+            }
             switch (kind.literal()) {
                 case Type::Kind::Integer:
                     if(symbol.symbol()->id <= 7) return true;
@@ -162,7 +168,6 @@ private:
         this->errors.push_back(error);
     }
 
-
     Type binary_expr_check(tree::ParseTree* ctx_right, tree::ParseTree* ctx_left, ParserRuleContext* ctx){
         auto left = any_cast<Type>(visit(ctx_left));
         auto right = any_cast<Type>(visit(ctx_right));
@@ -186,12 +191,14 @@ public:
     SymbolTable* table;
     Scope current_scope;
     Scope previous_scope;
+    size_t scope_index;
     Type expected_type;
     std::vector<Error> errors;
     explicit TypeVisitor(SymbolTable* _table) {
         table = _table;
         current_scope = previous_scope = table->root_scope;
         expected_type = Type();
+        scope_index = 0;
     }
 
     /*
@@ -205,8 +212,37 @@ public:
      * Variable declarations
      * */
     antlrcpp::Any visitVariableDecl (eelParser::VariableDeclContext* ctx) override {
-        return visitChildren(ctx);
+        auto type = any_cast<Type>(visit(ctx->typedIdentifier()));
+        auto offset = ctx->start->getCharPositionInLine();
+        if(type.is_literal && type.literal() == Type::Undefined){
+            new_error(Error::UndefinedType,
+                      type.token,
+                      ctx,
+                      offset,
+                      "");
+        } else {
+            this->expected_type = type; // Set expected type to be used inside expressions
+            auto expr = any_cast<Type>(visit(ctx->expr()));
+            this->expected_type = Type(); // Reset value
+
+            if(expr.is_literal && expr.literal() == Type::Undefined){
+                new_error(Error::UndefinedType,
+                          expr.token,
+                          ctx,
+                          offset,
+                          "");
+            } else if(!type_equals(type, expr)){
+                new_error(Error::TypeMisMatch,
+                          expr.token,
+                          ctx,
+                          offset,
+                          type.get_type());
+            }
+            type.token = ctx->start;
+        }
+        return type;
     }
+
     antlrcpp::Any visitConstDecl (eelParser::ConstDeclContext* ctx) override {
         auto type = any_cast<Type>(visit(ctx->typedIdentifier()));
         auto offset = ctx->start->getCharPositionInLine();
@@ -227,8 +263,7 @@ public:
                           ctx,
                           offset,
                           "");
-            }
-            if(!type_equals(type, expr)){
+            } else if(!type_equals(type, expr)){
                 new_error(Error::TypeMisMatch,
                           expr.token,
                           ctx,
@@ -239,6 +274,7 @@ public:
         }
         return type;
     }
+
     antlrcpp::Any visitPinDecl (eelParser::PinDeclContext* ctx) override {
         return visitChildren(ctx);
     }
@@ -310,10 +346,10 @@ public:
         return visitChildren(ctx);
     }
     antlrcpp::Any visitFqnExpr (eelParser::FqnExprContext* ctx) override {
-        auto token = table->root_scope->find(ctx->getText());
+        auto token = current_scope->find(ctx->getText());
         if(token.is_nullptr())
             return Type(Type::Undefined, ctx->start);
-        else if(token->kind != Symbol_::Kind::Variable || token->kind != Symbol_::Kind::Constant)
+        else if(token->kind != Symbol_::Kind::Variable && token->kind != Symbol_::Kind::Constant)
             return Type(Type::NotAType, ctx->start);
         return Type(token, ctx->start);
     }
@@ -357,7 +393,20 @@ public:
         return visitChildren(ctx);
     }
     antlrcpp::Any visitAssignExpr (eelParser::AssignExprContext* ctx) override {
-        return visitChildren(ctx);
+        auto variable = any_cast<Type>(visit(ctx->right));
+        auto offset = ctx->start->getCharPositionInLine();
+
+        if(variable.is_null() || variable.is_literal) {
+            new_error(Error::ExpectedVariable, variable.token, ctx, offset, "");
+        } else if(variable.symbol()->kind != Symbol_::Kind::Variable){
+            new_error(Error::ExpectedVariable, variable.token, ctx, offset, "");
+        } else {
+            auto expr = any_cast<Type>(visit(ctx->left));
+            if(!type_equals(variable, expr)){
+                new_error(Error::ExpectedVariable, expr.token, ctx, offset, "");
+            }
+        }
+        return variable;
     }
 
     antlrcpp::Any visitAdditiveAssignExpr (eelParser::AdditiveAssignExprContext* ctx) override {
@@ -387,5 +436,15 @@ public:
     }
     antlrcpp::Any visitPinStmt (eelParser::PinStmtContext* ctx) override {
         return visitChildren(ctx);
+    }
+    antlrcpp::Any visitStmtBlock (eelParser::StmtBlockContext* ctx) override {
+        auto _previous_scope = previous_scope;
+        previous_scope = current_scope;
+        current_scope = table->get_scope(++scope_index);
+        visitChildren(ctx);
+        scope_index--;
+        current_scope = previous_scope;
+        previous_scope = _previous_scope;
+        return {};
     }
 };
