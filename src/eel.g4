@@ -364,9 +364,9 @@ awaitStmt:
     Await expr ;
 
 pinStmt:
-    Set fqn expr
-    | Set fqn Mode expr
-    | Set fqn Pin expr
+    Set fqn expr # SetPinValueStmt
+    | Set fqn Mode expr # SetPinModeStmt
+    | Set fqn Pin expr # SetPinNumberStmt
 ;
 
 fieldInit:
