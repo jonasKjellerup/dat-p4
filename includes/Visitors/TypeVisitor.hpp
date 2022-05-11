@@ -153,9 +153,10 @@ private:
         };
     }
 
-    void new_error(Error::Kind kind, Token* token, ParserRuleContext* ctx, size_t offset, std::string expected){
+    void new_error(Error::Kind kind, Token* token, ParserRuleContext* ctx, std::string expected){
         auto location = get_source_location(token);
         auto source = get_context_source(ctx);
+        auto offset = ctx->start->getCharPositionInLine();
         auto error = Error(
                 kind,
                 source,
@@ -167,24 +168,80 @@ private:
         this->errors.push_back(error);
     }
 
-    Type binary_expr_check(tree::ParseTree* ctx_right, tree::ParseTree* ctx_left, ParserRuleContext* ctx){
+    Type binary_expr(tree::ParseTree* ctx_right, tree::ParseTree* ctx_left, ParserRuleContext* ctx){
         auto left = any_cast<Type>(visit(ctx_left));
         auto right = any_cast<Type>(visit(ctx_right));
         right.token->getLine();
         right.token->getCharPositionInLine();
-        auto offset = right.token->getCharPositionInLine();
         if(this->expected_type.is_null()){
             if(!type_equals(left, right)){
-                new_error(Error::TypeMisMatch, left.token, ctx, offset, right.get_type());
+                new_error(Error::TypeMisMatch, left.token, ctx, right.get_type());
             }
         } else {
             if(!type_equals(left, this->expected_type)){
-                new_error(Error::TypeMisMatch, left.token, ctx, offset, this->expected_type.get_type());
+                new_error(Error::TypeMisMatch, left.token, ctx, this->expected_type.get_type());
             }
         }
+        right.token = ctx->start;
         return right;
     }
 
+    Type binary_assign_expr(tree::ParseTree* ctx_right, tree::ParseTree* ctx_left, ParserRuleContext* ctx){
+        auto variable = any_cast<Type>(visit(ctx_right));
+
+        if(variable.is_null() || variable.is_literal) {
+            new_error(Error::ExpectedVariable, variable.token, ctx, "");
+        } else if(variable.symbol()->kind != Symbol_::Kind::Variable){
+            new_error(Error::ExpectedVariable, variable.token, ctx, "");
+        } else {
+            auto expr = any_cast<Type>(visit(ctx_left));
+            if(!type_equals(variable, expr)){
+                new_error(Error::ExpectedVariable, expr.token, ctx, "");
+            }
+        }
+        variable.token = ctx->start;
+        return variable;
+    }
+
+    Type logical_expr(tree::ParseTree* ctx_right, tree::ParseTree* ctx_left, ParserRuleContext* ctx){
+        auto right = any_cast<Type>(visit(ctx_right));
+        auto boolean = Type(Type::Kind::Bool, nullptr);
+        if(right.is_null()){
+            new_error(Error::TypeMisMatch, right.token, ctx, "bool");
+        } else if(!type_equals(right, boolean)){
+            new_error(Error::TypeMisMatch, right.token, ctx, "bool");
+        } else {
+            auto left = any_cast<Type>(visit(ctx_left));
+            if(left.is_null()){
+                new_error(Error::TypeMisMatch, left.token, ctx, "bool");
+            } else if(!type_equals(left, boolean)){
+                new_error(Error::TypeMisMatch, left.token, ctx, "bool");
+            }
+        }
+        right.token = ctx->start;
+        return right;
+    }
+
+    Type pin_stmt(tree::ParseTree* ctx_fqn, tree::ParseTree* ctx_expr, ParserRuleContext* ctx){
+        auto digital = Type(table->root_scope->find("digital"), nullptr);
+        auto analog = Type(table->root_scope->find("analog"), nullptr);
+        auto u8 = Type(table->root_scope->find("u8"), nullptr);
+        auto pin = std::any_cast<Type>(visit(ctx_fqn));
+        if(pin.is_null()){
+            new_error(Error::None, pin.token, ctx, "");
+        } else if(!type_equals(pin, analog) && !type_equals(pin, digital)){
+            new_error(Error::TypeMisMatch, pin.token, ctx, "digital or analog");
+        } else {
+            auto expr = any_cast<Type>(visit(ctx_expr));
+            if(expr.is_null()){
+                new_error(Error::TypeMisMatch, expr.token, ctx, "u8");
+            } else if(!type_equals(pin, u8)){
+                new_error(Error::TypeMisMatch, expr.token, ctx, "u8");
+            }
+        }
+        pin.token = ctx->start;
+        return pin;
+    }
 public:
 
     SymbolTable* table;
@@ -212,30 +269,18 @@ public:
      * */
     antlrcpp::Any visitVariableDecl (eelParser::VariableDeclContext* ctx) override {
         auto type = any_cast<Type>(visit(ctx->typedIdentifier()));
-        auto offset = ctx->start->getCharPositionInLine();
+
         if(type.is_literal && type.literal() == Type::Undefined){
-            new_error(Error::UndefinedType,
-                      type.token,
-                      ctx,
-                      offset,
-                      "");
+            new_error(Error::UndefinedType,type.token,ctx,"");
         } else {
             this->expected_type = type; // Set expected type to be used inside expressions
             auto expr = any_cast<Type>(visit(ctx->expr()));
             this->expected_type = Type(); // Reset value
 
             if(expr.is_literal && expr.literal() == Type::Undefined){
-                new_error(Error::UndefinedType,
-                          expr.token,
-                          ctx,
-                          offset,
-                          "");
+                new_error(Error::UndefinedType,expr.token,ctx,"");
             } else if(!type_equals(type, expr)){
-                new_error(Error::TypeMisMatch,
-                          expr.token,
-                          ctx,
-                          offset,
-                          type.get_type());
+                new_error(Error::TypeMisMatch,expr.token,ctx,type.get_type());
             }
             type.token = ctx->start;
         }
@@ -244,49 +289,33 @@ public:
 
     antlrcpp::Any visitConstDecl (eelParser::ConstDeclContext* ctx) override {
         auto type = any_cast<Type>(visit(ctx->typedIdentifier()));
-        auto offset = ctx->start->getCharPositionInLine();
+
         if(type.is_literal && type.literal() == Type::Undefined){
-            new_error(Error::UndefinedType,
-                      type.token,
-                      ctx,
-                      offset,
-                      "");
+            new_error(Error::UndefinedType,type.token, ctx,"");
         } else {
             this->expected_type = type; // Set expected type to be used inside expressions
             auto expr = any_cast<Type>(visit(ctx->expr()));
             this->expected_type = Type(); // Reset value
 
             if(expr.is_literal && expr.literal() == Type::Undefined){
-                new_error(Error::UndefinedType,
-                          expr.token,
-                          ctx,
-                          offset,
-                          "");
+                new_error(Error::UndefinedType,expr.token, ctx,"");
             } else if(!type_equals(type, expr)){
-                new_error(Error::TypeMisMatch,
-                          expr.token,
-                          ctx,
-                          offset,
-                          type.get_type());
+                new_error(Error::TypeMisMatch,expr.token,ctx,type.get_type());
             }
             type.token = ctx->start;
         }
         return type;
     }
-
     antlrcpp::Any visitPinDecl (eelParser::PinDeclContext* ctx) override {
         auto expr = std::any_cast<Type>(visit(ctx->expr()));
         auto u8 = Type(table->root_scope->find("u8"), nullptr);
-        auto offset = ctx->start->getCharPositionInLine();
+
         if(!type_equals(u8, expr)){
-            new_error(Error::TypeMisMatch,
-                      expr.token,
-                      ctx,
-                      offset,
-                      u8.get_type());
+            new_error(Error::TypeMisMatch,expr.token,ctx,u8.get_type());
         }
         return visitChildren(ctx);
     }
+
     antlrcpp::Any visitArrayDecl (eelParser::ArrayDeclContext* ctx) override {
         return visitChildren(ctx);
     }
@@ -368,85 +397,99 @@ public:
      * Math Expressions
      * */
     antlrcpp::Any visitScalingExpr (eelParser::ScalingExprContext* ctx) override {
-        auto left = binary_expr_check(ctx->right, ctx->left, ctx);
+        auto left = binary_expr(ctx->right, ctx->left, ctx);
         left.token = ctx->start;
         return left;
     }
     antlrcpp::Any visitAdditiveExpr (eelParser::AdditiveExprContext* ctx) override {
-        auto left = binary_expr_check(ctx->right, ctx->left, ctx);
+        auto left = binary_expr(ctx->right, ctx->left, ctx);
         left.token = ctx->start;
         return left;
     }
     antlrcpp::Any visitShiftingExpr (eelParser::ShiftingExprContext* ctx) override {
-        auto left = binary_expr_check(ctx->right, ctx->left, ctx);
+        auto left = binary_expr(ctx->right, ctx->left, ctx);
         left.token = ctx->start;
         return left;
     }
     antlrcpp::Any visitComparisonExpr (eelParser::ComparisonExprContext* ctx) override {
-        auto left = binary_expr_check(ctx->right, ctx->left, ctx);
+        binary_expr(ctx->right, ctx->left, ctx);
+        return Type(Type::Kind::Bool, ctx->start);
+    }
+    antlrcpp::Any visitAndExpr (eelParser::AndExprContext* ctx) override {
+        auto left = binary_expr(ctx->right, ctx->left, ctx);
         left.token = ctx->start;
         return left;
     }
-    antlrcpp::Any visitAndExpr (eelParser::AndExprContext* ctx) override {
-        return visitChildren(ctx);
-    }
     antlrcpp::Any visitXorExpr (eelParser::XorExprContext* ctx) override {
-        return visitChildren(ctx);
+        auto left = binary_expr(ctx->right, ctx->left, ctx);
+        left.token = ctx->start;
+        return left;
     }
     antlrcpp::Any visitOrExpr (eelParser::OrExprContext* ctx) override {
-        return visitChildren(ctx);
+        auto left = binary_expr(ctx->right, ctx->left, ctx);
+        left.token = ctx->start;
+        return left;
     }
+
     antlrcpp::Any visitLAndExpr (eelParser::LAndExprContext* ctx) override {
-        return visitChildren(ctx);
+        return logical_expr(ctx->right, ctx->left, ctx);
     }
     antlrcpp::Any visitLOrExpr (eelParser::LOrExprContext* ctx) override {
-        return visitChildren(ctx);
+        return logical_expr(ctx->right, ctx->left, ctx);
     }
+
     antlrcpp::Any visitAssignExpr (eelParser::AssignExprContext* ctx) override {
-        auto variable = any_cast<Type>(visit(ctx->right));
-        auto offset = ctx->start->getCharPositionInLine();
-
-        if(variable.is_null() || variable.is_literal) {
-            new_error(Error::ExpectedVariable, variable.token, ctx, offset, "");
-        } else if(variable.symbol()->kind != Symbol_::Kind::Variable){
-            new_error(Error::ExpectedVariable, variable.token, ctx, offset, "");
-        } else {
-            auto expr = any_cast<Type>(visit(ctx->left));
-            if(!type_equals(variable, expr)){
-                new_error(Error::ExpectedVariable, expr.token, ctx, offset, "");
-            }
-        }
-        return variable;
+        return binary_assign_expr(ctx->right, ctx->left, ctx);
     }
-
     antlrcpp::Any visitAdditiveAssignExpr (eelParser::AdditiveAssignExprContext* ctx) override {
-        return visitChildren(ctx);
+        return binary_assign_expr(ctx->right, ctx->left, ctx);
     }
     antlrcpp::Any visitScalingAssignExpr (eelParser::ScalingAssignExprContext* ctx) override {
-        return visitChildren(ctx);
+        return binary_assign_expr(ctx->right, ctx->left, ctx);
     }
     antlrcpp::Any visitShiftingAssignExpr (eelParser::ShiftingAssignExprContext* ctx) override {
-        return visitChildren(ctx);
+        return binary_assign_expr(ctx->right, ctx->left, ctx);
     }
+
+
     antlrcpp::Any visitOrAssignExpr (eelParser::OrAssignExprContext* ctx) override {
-        return visitChildren(ctx);
+        return binary_assign_expr(ctx->right, ctx->left, ctx);
     }
     antlrcpp::Any visitAndAssignExpr (eelParser::AndAssignExprContext* ctx) override {
-        return visitChildren(ctx);
+        return binary_assign_expr(ctx->right, ctx->left, ctx);
     }
     antlrcpp::Any visitXorAssignExpr (eelParser::XorAssignExprContext* ctx) override {
-        return visitChildren(ctx);
+        return binary_assign_expr(ctx->right, ctx->left, ctx);
     }
 
     /*
-     * Other
+     * Other Expr
      * */
     antlrcpp::Any visitReadPinExpr (eelParser::ReadPinExprContext* ctx) override {
-        return visitChildren(ctx);
+        auto digital = Type(table->root_scope->find("digital"), nullptr);
+        auto analog = Type(table->root_scope->find("analog"), nullptr);
+        auto pin = std::any_cast<Type>(visit(ctx->fqn()));
+        if(pin.is_null()){
+            new_error(Error::None, pin.token, ctx, "");
+        } else if (!type_equals(pin, analog) && !type_equals(pin, digital)) {
+            new_error(Error::TypeMisMatch, pin.token, ctx, "digital or analog");
+        }
+        return Type(table->root_scope->find("u8"), pin.token);
     }
-    antlrcpp::Any visitPinStmt (eelParser::PinStmtContext* ctx) override {
-        return visitChildren(ctx);
+
+    /*
+     * Stmts
+     * */
+    antlrcpp::Any visitSetPinValueStmt (eelParser::SetPinValueStmtContext* ctx) override {
+        return pin_stmt(ctx->fqn(), ctx->expr(), ctx);
     }
+    antlrcpp::Any visitSetPinModeStmt (eelParser::SetPinModeStmtContext* ctx) override {
+        return pin_stmt(ctx->fqn(), ctx->expr(), ctx); // TODO: FIX HERE AND IN THE GRAMMAR OR JUST IGNORE CUZ PAIN
+    }
+    antlrcpp::Any visitSetPinNumberStmt (eelParser::SetPinNumberStmtContext* ctx) override {
+        return pin_stmt(ctx->fqn(), ctx->expr(), ctx);
+    }
+
     antlrcpp::Any visitStmtBlock (eelParser::StmtBlockContext* ctx) override {
         auto _previous_scope = previous_scope;
         previous_scope = current_scope;
@@ -456,5 +499,16 @@ public:
         current_scope = previous_scope;
         previous_scope = _previous_scope;
         return {};
+    }
+    antlrcpp::Any visitConditionBlock (eelParser::ConditionBlockContext* ctx) override {
+        Type expr = any_cast<Type>(visit(ctx->expr()));
+        auto boolean = Type(Type::Kind::Bool, nullptr);
+
+        if(expr.is_null()){
+            new_error(Error::None, expr.token, ctx, "");
+        } else if (!type_equals(expr, boolean)){
+            new_error(Error::TypeMisMatch, expr.token, ctx, "bool");
+        }
+        return expr;
     }
 };
