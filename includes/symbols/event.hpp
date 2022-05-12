@@ -2,7 +2,7 @@
 
 #include <vector>
 
-#include <symbols/function.h>
+#include <symbols/function.hpp>
 #include <symbol_table.hpp>
 
 namespace eel::symbols {

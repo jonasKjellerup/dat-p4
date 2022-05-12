@@ -65,6 +65,7 @@ namespace eel {
             Function,
             Type,
             Namespace,
+            Event,
             Indirect,
         };
 
@@ -86,6 +87,7 @@ namespace eel {
             //       deallocation of these pointers
             symbols::Variable* variable;
             symbols::Constant* constant;
+            symbols::Event* event;
 
             // NOTE: can't naively deallocate this one since
             //       some types (primitives) have static storage
@@ -139,6 +141,11 @@ namespace eel {
 
         /// \brief Registers an already existing type.
         void declare_type(symbols::Type*);
+
+        Symbol declare_event(const std::string& name);
+        Symbol declare_event(const std::string& name, symbols::Function& function);
+        symbols::Event& declare_event_handle(const std::string& event_name);
+
         void declare_func();
         void declare_namespace(const std::string& name);
 

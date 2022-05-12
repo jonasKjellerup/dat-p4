@@ -5,4 +5,5 @@ namespace eel::symbols {
     struct Constant;
     struct Function;
     struct Type;
+    struct Event;
 }

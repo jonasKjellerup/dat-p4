@@ -1,6 +1,7 @@
 #include <symbol_table.hpp>
 #include <symbols/type.hpp>
 #include <symbols/variable.hpp>
+#include <symbols/event.hpp>
 
 using namespace eel;
 
@@ -146,6 +147,92 @@ void Scope_::declare_namespace(const std::string& name) {
     symbol.value.namespace_ = this->context->derive_scope(this);
 
     this->symbol_map.insert(std::make_pair(name, symbol.id));
+}
+
+static Symbol_& create_event_symbol(SymbolTable* context, const std::string& name) {
+    auto& symbol = context->new_symbol();
+    symbol.kind = Symbol_::Kind::Event;
+    symbol.name = name;
+    symbol.value.event = new symbols::Event;
+
+    return symbol;
+}
+
+Symbol Scope_::declare_event(const std::string& name) {
+    auto root = this->context->root_scope;
+    auto symbol = root->find(name);
+
+    // If a symbol already exists
+    if (!symbol.is_nullptr()) {
+        if (symbol->kind != Symbol_::Kind::Event) {
+            // TODO throw error
+            return {};
+        }
+
+        if (symbol->value.event->is_complete) {
+            // TODO throw error
+            return {};
+        }
+
+        symbol->value.event->is_complete = true;
+    } else {
+        symbol = Symbol(&create_event_symbol(this->context, name));
+        root->symbol_map.insert(std::make_pair(name, symbol->id));
+    }
+    auto& event = symbol->value.event;
+
+
+    event->has_predicate = false;
+    event->is_awaited = false;
+    event->is_complete = true;
+
+    return symbol;
+}
+
+Symbol Scope_::declare_event(const std::string& name, symbols::Function& function) {
+    auto root = this->context->root_scope;
+    auto symbol = root->find(name);
+
+    // If a symbol already exists
+    if (!symbol.is_nullptr()) {
+        if (symbol->kind != Symbol_::Kind::Event) {
+            // TODO throw error
+            return {};
+        }
+
+        if (symbol->value.event->is_complete) {
+            // TODO throw error
+            return {};
+        }
+
+        symbol->value.event->is_complete = true;
+    } else {
+        symbol = Symbol(&create_event_symbol(this->context, name));
+        root->symbol_map.insert(std::make_pair(name, symbol->id));
+    }
+    auto& event = symbol->value.event;
+
+    event->predicate = function;
+
+    event->has_predicate = true;
+    event->is_awaited = false;
+    event->is_complete = true;
+
+    return symbol;
+}
+
+symbols::Event& Scope_::declare_event_handle(const std::string& event_name) {
+    auto root = this->context->root_scope;
+    auto event_symbol = root->find(event_name);
+
+    // if the event_symbol was not found create it and mark as incomplete
+    if (event_symbol.is_nullptr()) {
+        event_symbol = root->declare_event(event_name);
+        event_symbol->value.event->is_complete = false;
+    }
+
+    event_symbol->value.event->add_handle(root, this->context);
+    return *event_symbol->value.event;
 }
 
 /*

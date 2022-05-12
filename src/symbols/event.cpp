@@ -1,4 +1,4 @@
-#include <symbols/event.h>
+#include <symbols/event.hpp>
 #include <symbols/type.hpp>
 
 using namespace eel::symbols;
