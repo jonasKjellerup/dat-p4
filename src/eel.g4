@@ -1,34 +1,112 @@
 grammar eel;
 
-Identifier:  [_a-zA-Z][_a-zA-Z0-9]*;
-TrailingComma: ',' |;
-DecDigit: [0-9];
-HexDigit: [0-9a-fA-F];
-CharSymbol:
-    '\\n' | '\\r' | '\\t' | '\\v'
-    | '\\x' HexDigit+ | '\\\\'
-    | '\\\'' | '\\"' | [ -~]
-;
-
 IntegerLiteral: DecDigit+ | '0x' HexDigit+;
 FloatLiteral: '.' DecDigit+ | DecDigit+ '.' DecDigit+;
 BoolLiteral: 'true' | 'false';
-CharLiteral: '\'' CharSymbol '\'';
-StringLiteral: '"' CharSymbol* '"';
+CharLiteral: '\'' ('\\n' | '\\r' | '\\t' | '\\v'
+                       | '\\x' HexDigit+ | '\\\\'
+                       | '\\\'' | [\u0020-\u0026\u0028-\u007E])? '\'';
+StringLiteral: '"' ('\\n' | '\\r' | '\\t' | '\\v'
+                        | '\\x' HexDigit+ | '\\\\'
+                        | '\\"' | [\u0020-\u0021\u0023-\u007E])* '"';
+
+IntegerTypes: 'i8'
+    | 'i16'
+    | 'i32'
+    | 'i64'
+    | 'u8'
+    | 'u16'
+    | 'u32'
+    | 'u64'
+;
+
+
+FloatingTypes: 'f32' | 'f64' ;
+CharType: 'char';
+StringType: 'string';
+PinType: 'analog' | 'digital' ;
+
+Include: 'include';
+Pin: 'pin';
+Loop: 'loop';
+Setup: 'setup';
+
+Struct: 'struct';
+Union: 'union';
+Enum: 'enum';
+Untagged: 'untagged';
+
+Static: 'static';
+Const: 'const';
+As: 'as';
+
+
+Fn: 'fn';
+Return: 'return';
+Break: 'break';
+Continue: 'continue';
+Self: 'self';
+Impl: 'impl';
+
+Event: 'event';
+Interval: 'interval';
+Trait: 'trait';
+
+On: 'on';
+In: 'in';
+Await: 'await';
+Lock: 'lock';
+Set: 'set';
+Mode: 'mode';
+Read: 'read';
+
+
+Namespace: 'namespace';
+
+If: 'if';
+Else: 'else';
+
+Switch: 'switch';
+Case: 'case';
+Default: 'default';
+
+While: 'while';
+Do: 'do';
+For: 'for';
+Foreach: 'foreach';
+
+Identifier:  [_a-zA-Z][_a-zA-Z0-9]*;
+
+DecDigit: [0-9];
+HexDigit: [0-9a-fA-F];
+
+
 Comment: '//' ~[\r\n]* -> skip;
 BlockComment: '/*' .*? '*/' -> skip;
+Ignore: [ \r\n] -> skip;
 
-fqn: fqn '::' Identifier | Identifier;
 
-type: fqn | arrayType | pointerType | referenceType;
-arrayType: arrayType '[' expr ']' | fqn '[' expr ']';
-pointerType: fqn '*';
-referenceType: fqn '&';
+trailingComma: ',' |;
 
-program: tlDecl;
+fqn:
+    fqn '::' Identifier     # NamespaceIdentifier
+    | fqn '.'  Identifier   # ObjectIdentifier
+    | Identifier            # Identifier
+;
+
+type:
+     IntegerTypes
+    | FloatingTypes
+    | CharType
+    | StringType
+    | PinType
+    | fqn
+;
+
+program: tlDecl* ;
 
 tlDecl:
-    decls
+    decl
     | loopDecl
     | setupDecl
     | includeDirective
@@ -41,6 +119,9 @@ lDecl:
     | constDecl
     | staticDecl
     | pinDecl
+    | arrayDecl
+    | referenceDecl
+    | pointerDecl
 ;
 
 typeDecl:
@@ -64,35 +145,47 @@ decl:
 
 
 includeDirective:
-    'include' Identifier ';'
-    | 'include' Identifier 'as' Identifier ';'
+    Include Identifier ';'
+    | Include Identifier As Identifier ';'
 ;
 
 loopDecl:
-    'loop' stmtBlock
+    Loop stmtBlock
 ;
 
 setupDecl:
-    'setup' stmtBlock
+    Setup stmtBlock
 ;
 
 pinDecl:
-    'pin' Identifier type '(' expr ')' ';'
+    Pin Identifier PinType '(' expr ')' ';'
 ;
 
+typedIdentifier: type Identifier;
+
 variableDecl:
-    type Identifier ';'
-    | type Identifier '=' expr ';'
+    typedIdentifier ';'
+    | typedIdentifier '=' expr ';'
 ;
 
 constDecl:
-    'const' type Identifier '=' expr ';'
+    Const typedIdentifier '=' expr ';'
 ;
 
 staticDecl:
-    'static' variableDecl
+    Static typedIdentifier ';'
+    |Static typedIdentifier '=' expr ';'
 ;
 
+arrayDecl:
+    typedIdentifier '[' ']' '=' arrayInit ';'
+    | typedIdentifier '[' expr ']' ('=' arrayInit)? ';'
+;
+
+referenceDecl: type '&' Identifier ('=' expr)? ';';
+pointerDecl: type '*' Identifier ('=' expr)? ';';
+
+arrayInit: '{' exprList '}';
 
 associatedMember:
     instanceAssociatedFn
@@ -102,74 +195,77 @@ associatedMember:
 ;
 
 instanceAssocParamList:
-    '&' 'self' ',' paramList
-    | '&' 'self'
+    '&' Self ',' paramList
+    | '&' Self
 ;
 
 instanceAssociatedFn:
-    'fn' Identifier '(' instanceAssocParamList TrailingComma ')' stmtBlock
-    | 'fn' Identifier '(' instanceAssocParamList TrailingComma ')' '->' type stmtBlock
+    Fn Identifier '(' instanceAssocParamList trailingComma ')' stmtBlock
+    | Fn Identifier '(' instanceAssocParamList trailingComma ')' '->' type stmtBlock
 ;
 
 partialInstanceAssociatedFn:
-    'fn' Identifier '(' instanceAssocParamList TrailingComma ')' ';'
-    | 'fn' Identifier '(' instanceAssocParamList TrailingComma ')' '->' type ';'
+    Fn Identifier '(' instanceAssocParamList trailingComma ')' ';'
+    | Fn Identifier '(' instanceAssocParamList trailingComma ')' '->' type ';'
 ;
 
 typeAssociatedFn: fnDecl;
 
 partialTypeAssociatedFn:
-    'fn' Identifier '(' paramList ')' ';'
-    | 'fn' Identifier '(' paramList ')' '->' type ';'
+    Fn Identifier '(' paramList ')' ';'
+    | Fn Identifier '(' paramList ')' '->' type ';'
 ;
 
 traitImplBlock:
-    'impl' type 'for' type '{' associatedMember* '}'
+    Impl type For type '{' associatedMember* '}'
 ;
 
 implBlock:
-    'impl' type '{' associatedMember* '}'
+    Impl type '{' associatedMember* '}'
 ;
 
 fnDecl:
-    'fn' Identifier '(' paramList ')' stmtBlock
-    | 'fn' Identifier '(' paramList ')' '->' type stmtBlock
+    Fn Identifier '(' paramList ')' stmtBlock
+    | Fn Identifier '(' paramList ')' '->' type stmtBlock
 ;
 
 paramList:
     fnParam ',' paramList
-    | fnParam TrailingComma;
+    | fnParam trailingComma
+    | // Used for empty parameter list
+;
 
-fnParam: type Identifier;
+fnParam: typedIdentifier;
+
+
 
 eventDecl:
-    'event' Identifier ';'
-    | 'event' Identifier stmtBlock
+    Event Identifier ';'
+    | Event Identifier stmtBlock
 ;
 
 intervalDecl:
-    'interval' Identifier '=' expr ';'
+    Interval Identifier '=' expr ';'
 ;
 
 traitDecl:
-    'trait' Identifier '{' associatedMember* '}'
+    Trait Identifier '{' associatedMember* '}'
 ;
 
 structDecl:
-    'struct' Identifier '{' fieldList '}'
+    Struct Identifier '{' fieldList '}'
 ;
 
 unionDecl:
-    'union' Identifier '{' fieldList '}'
+    Union Identifier '{' fieldList '}'
 ;
 
 untaggedUnionDecl:
-    'untagged' unionDecl
+    Untagged unionDecl
 ;
 
 enumDecl:
-    'enum' Identifier ':' type '{' Identifier '}' ';'
-    | 'enum' Identifier ':' type '{' expr '}' ';'
+    Enum Identifier (':' type)? '{' (Identifier ('=' expr)? ';')* '}'
 ;
 
 fieldList:
@@ -178,16 +274,18 @@ fieldList:
 ;
 
 field:
-    type Identifier ';'
+    typedIdentifier ';'
+    | typedIdentifier'[' expr ']' ';'
+    | type ('&' | '*')? Identifier ';'
 ;
 
 
 namespaceDecl:
-    'namespace' Identifier '{' decls '}'
+    Namespace Identifier '{' decls '}'
 ;
 
 onDecl:
-    'on' Identifier stmtBlock
+    On fqn stmtBlock
 ;
 
 stmt:
@@ -201,6 +299,9 @@ stmt:
     | lockStmt
     | awaitStmt
     | pinStmt
+    | continueStmt
+    | breakStmt
+    | returnStmt
     | expr ';'
 ;
 stmts: stmt*;
@@ -209,63 +310,63 @@ stmtsOrLDecls:
     | lDecl stmtsOrLDecls
     |
 ;
+
 stmtBlock: '{' stmtsOrLDecls '}';
+conditionBlock: '(' expr ')';
 
-breakStmt: 'break';
-continueStmt: 'continue';
-returnStmt: 'return' expr;
+breakStmt: Break ';';
+continueStmt: Continue ';';
+returnStmt: Return expr? ';';
 
-elseStmt: 'else' stmt | 'else' '{' stmts '}' ;
-ifStmt: 'if' '(' expr ')' stmt elseStmt? | 'if' '(' expr ')' '{' stmts '}' elseStmt? ;
+elseStmt: Else stmt | Else stmtBlock ;
+ifStmt: If conditionBlock stmt elseStmt? | If conditionBlock stmtBlock elseStmt? ;
 
 switchStmt:
-    'switch' '(' expr ')' '{' caseStmt+ '}'
+    Switch conditionBlock '{' ((caseStmt)* | (caseStmt* defaultStmt?)) '}'
 ;
-
 
 caseStmt:
-    'case' expr stmts
-    | defaultStmts
+    Case expr ':' stmts
 ;
 
-defaultStmts:
-    'default' stmts
+defaultStmt:
+    Default ':' stmts
 ;
 
 whileStmt:
-    'while' ( expr ) stmtBlock
+    While conditionBlock stmtBlock
 ;
 
 doWhileStmt:
-    'do' stmtBlock 'while' ( expr )
+    Do stmtBlock While conditionBlock
 ;
 
 forStmt:
-    'for' '(' stmt ';' expr ';' stmt ')' stmtBlock
+    For '(' stmtsOrLDecls  expr ';'  expr ')' stmtBlock
 ;
 
 forEachStmt:
-    'foreach' '(' Identifier 'in' 'Identifier' ')'
-    | 'foreach' '(' Identifier ',' Identifier 'in' 'Identifier' ')'
+    Foreach '(' x1=Identifier In x3=Identifier ')'
+    | Foreach '(' x1=Identifier ',' x2=Identifier In x3=Identifier ')'
 ;
 
 
 lockStmt:
-    'lock' lockList stmtBlock
+    Lock lockList stmtBlock
 ;
 
 lockList:
-    Identifier ',' lockList
-    | Identifier TrailingComma
+    fqn ',' lockList
+    | fqn trailingComma
 ;
 
 awaitStmt:
-    'await' expr ;
+    Await expr ';' ;
 
 pinStmt:
-    'set' Identifier expr
-    | 'set' Identifier 'mode' expr
-    | 'set' Identifier 'pin' expr
+    Set fqn expr # SetPinValueStmt
+    | Set fqn Mode expr # SetPinModeStmt
+    | Set fqn Pin expr # SetPinNumberStmt
 ;
 
 fieldInit:
@@ -274,8 +375,9 @@ fieldInit:
 
 exprList:
     expr ',' exprList
-    | expr TrailingComma
+    | expr trailingComma
 ;
+
 
 
 expr:
@@ -286,54 +388,44 @@ expr:
     | CharLiteral # CharLiteral
     | StringLiteral # StringLiteral
 
+    | fqn '(' params=exprList ')' # FnCallExpr
+    | fqn '(' '&' Self ',' params=exprList ')' # InstanceAssociatedFnCallExpr
+
     | type '{' fieldInit* '}' # StructExpr
-    | '{' exprList '}' # ArrayExpr
 
+    | fqn '[' expr ']' # ArrayExpr
+    | fqn '*' # PointerExpr
+    | fqn '&' # ReferenceExpr
     | fqn # FqnExpr
-    | readPin # ReadPinExpr
-    | expr 'as' type # CastExpr
 
-    | <assoc=right> '+' expr # Pos
-    | <assoc=right> '-' expr # Neg
-    | <assoc=right> '!' expr # Not
-    | <assoc=right> '~' expr # BitComp
-    | <assoc=right> '*' expr # Deref
+    | Read fqn # ReadPinExpr
+    | expr As type # CastExpr
 
-    | <assoc=left> expr ('/'|'*'|'%') expr # Scaling
-    | <assoc=left> expr ('+'|'-') expr # Addition
+    | <assoc=right> '+' left=expr # Pos
+    | <assoc=right> '-' left=expr # Neg
+    | <assoc=right> '!' left=expr # Not
+    | <assoc=right> '~' left=expr # BitComp
+    | <assoc=right> '*' left=expr # Deref
 
-    | <assoc=left> expr '>>' expr # ArithmeticRightShift
-    | <assoc=left> expr '>>>' expr # LogicalRightShift
-    | <assoc=left> expr '<<' expr # LeftShift
+    | <assoc=left> right=expr op=('/'|'*'|'%') left=expr # ScalingExpr
+    | <assoc=left> right=expr op=('+'|'-') left=expr # AdditiveExpr
+    | <assoc=left> right=expr op=('>>'|'>>>' |'<<') left=expr # ShiftingExpr
+    | <assoc=left> right=expr op=('>'|'>='|'<='|'=='|'!=') left=expr # ComparisonExpr
 
-    | <assoc=left> expr '>' expr # GreaterThan
-    | <assoc=left> expr '<' expr # LessThan
-    | <assoc=left> expr '>=' expr # GreaterThanEquals
-    | <assoc=left> expr '<=' expr # LessThanEquals
-    | <assoc=left> expr '==' expr # Equals
-    | <assoc=left> expr '!=' expr # NotEquals
+    | <assoc=left> right=expr '&' left=expr # AndExpr
+    | <assoc=left> right=expr '^' left=expr # XorExpr
+    | <assoc=left> right=expr '|' left=expr # OrExpr
 
-    | <assoc=left> expr '&' expr # And
-    | <assoc=left> expr '^' expr # Xor
-    | <assoc=left> expr '|' expr # Or
+    | <assoc=left> right=expr '&&' left=expr # LAndExpr
+    | <assoc=left> right=expr '||' left=expr # LOrExpr
 
-    | <assoc=left> expr '&&' expr # LAnd
-    | <assoc=left> expr '||' expr # LOr
+    | <assoc=right> right=expr '=' left=expr # AssignExpr
 
-    | <assoc=right> expr '=' expr # Assign
-    | <assoc=right> expr '-=' expr # SubAssign
-    | <assoc=right> expr '+=' expr # AddAssign
-    | <assoc=right> expr '/=' expr # DivAssign
-    | <assoc=right> expr '*=' expr # MulAssign
-    | <assoc=right> expr '%=' expr # ModAssign
-    | <assoc=right> expr '>>=' expr # ArsAssign
-    | <assoc=right> expr '>>>=' expr # LrsAssign
-    | <assoc=right> expr '<<=' expr # LsAssign
-    | <assoc=right> expr '|=' expr # OrAssign
-    | <assoc=right> expr '&=' expr # AndAssign
-    | <assoc=right> expr '^=' expr # XorAssign
-;
+    | <assoc=right> right=expr op=('-='|'+=') left=expr # AdditiveAssignExpr
+    | <assoc=right> right=expr op=('/='|'*='|'%=') left=expr # ScalingAssignExpr
+    | <assoc=right> right=expr op=('>>='|'>>>='|'<<=') left=expr # ShiftingAssignExpr
 
-readPin:
-    'read' Identifier
+    | <assoc=right> right=expr '|=' left=expr # OrAssignExpr
+    | <assoc=right> right=expr '&=' left=expr # AndAssignExpr
+    | <assoc=right> right=expr '^=' left=expr # XorAssignExpr
 ;

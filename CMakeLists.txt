@@ -15,19 +15,29 @@ find_package(ANTLR REQUIRED)
 
 link_directories(${ANTLR4CPP_LIBS})
 
-antlr_target(Eel ${PROJECT_SOURCE_DIR}/src/eel.g4
+antlr_target(Eel ${PROJECT_SOURCE_DIR}/src/eel.g4 VISITOR
         PACKAGE eel
         OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/antlr-build)
 
-include_directories(${ANTLR_EelLexer_OUTPUT_DIR})
-include_directories(${ANTLR_EelParser_OUTPUT_DIR})
+include_directories(${ANTLR_Eel_OUTPUT_DIR})
 
 add_compile_options(-Wall -Wextra -pedantic)
 
 add_library(compiler
         ${ANTLR_Eel_CXX_OUTPUTS}
-        ${ANTLR_Eel_CXX_OUTPUTS})
+        ${ANTLR_Eel_CXX_OUTPUTS}
+        src/parsing.cc
+        src/symbol_table.cc
+        src/symbols/type.cc
+        src/error.cc
+        src/symbols/event.cpp)
 target_link_libraries(compiler antlr4_static)
+
+add_executable(compiler_tests
+        tests/entry.cc
+        tests/test_antlr.cc
+        tests/test_symbol_table.cc)
+target_link_libraries(compiler_tests compiler)
 
 add_executable(compiler_cli src/cli.cc)
 target_link_libraries(compiler_cli compiler)

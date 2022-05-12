@@ -8,7 +8,7 @@
     </Objective-C>
     <files>
       <extensions>
-        <pair source="cc" header="hpp" fileNamingConvention="LISP_CASE" />
+        <pair source="cc" header="hpp" fileNamingConvention="NONE" />
         <pair source="c" header="h" fileNamingConvention="NONE" />
         <pair source="cu" header="cuh" fileNamingConvention="NONE" />
       </extensions>
