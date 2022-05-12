@@ -138,3 +138,5 @@ Temporary Items
 venv
 antlr-build
 antlr.jar
+
+.local

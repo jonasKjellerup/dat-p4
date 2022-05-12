@@ -21,7 +21,7 @@ antlr_target(Eel ${PROJECT_SOURCE_DIR}/src/eel.g4
 
 include_directories(${ANTLR_Eel_OUTPUT_DIR})
 
-add_compile_options(-Wall -Wextra -pedantic)
+add_compile_options(-Wall -Wextra -pedantic -fconcepts)
 
 add_library(compiler
         ${ANTLR_Eel_CXX_OUTPUTS}
@@ -33,7 +33,7 @@ target_link_libraries(compiler antlr4_static)
 
 add_executable(compiler_tests
         tests/entry.cc
-        tests/test_symbol_table.cc)
+        tests/test_symbol_table.cc tests/test_runtime_events.cc)
 target_link_libraries(compiler_tests compiler)
 
 add_executable(compiler_cli src/cli.cc)
