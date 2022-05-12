@@ -9,6 +9,8 @@
 #include "antlr4-runtime.h"
 #include "symbol_table.hpp"
 #include "symbols/type.hpp"
+#include "symbols/constant.hpp"
+#include "symbols/event.hpp"
 #include "error.hpp"
 
 using namespace eel;
@@ -117,8 +119,12 @@ private:
         Type kind = a.is_literal ? a : b;
         Type symbol = a.is_literal ? b : a;
         if(kind.is_literal && !symbol.is_literal){
-            if(symbol.symbol()->kind != Symbol_::Kind::Type) {
+            if(symbol.symbol()->kind == Symbol_::Kind::Variable) {
                 symbol.value.symbol = symbol.symbol()->value.variable->type;
+            } else if(symbol.symbol()->kind == Symbol_::Kind::Constant) {
+                symbol.value.symbol = symbol.symbol()->value.constant->type;
+            }  else if(symbol.symbol()->kind == Symbol_::Kind::Event){
+                return kind.literal() == Type::Kind::Bool;
             }
             switch (kind.literal()) {
                 case Type::Kind::Integer:
@@ -339,6 +345,26 @@ public:
     }
 
     /*
+     *  Other Declarations
+     * */
+    antlrcpp::Any visitOnDecl (eelParser::OnDeclContext* ctx) override{
+
+        auto fqn = current_scope->find(ctx->fqn()->getText());
+
+        if(fqn.is_nullptr()){
+            new_error(Error::Kind::TypeMisMatch, ctx->fqn()->start, ctx, "Event");
+        }
+        auto event = Type(fqn, ctx->fqn()->start);
+
+        if(event.is_literal) {
+            new_error(Error::Kind::TypeMisMatch, event.token, ctx, "Event");
+        } else if (event.symbol()->kind != Symbol_::Kind::Event){
+            new_error(Error::Kind::TypeMisMatch, event.token, ctx, "Event");
+        }
+        return visitChildren(ctx);
+    }
+
+    /*
      * Literal Expressions
      * */
     antlrcpp::Any visitIntegerLiteral (eelParser::IntegerLiteralContext* ctx) override {
@@ -388,8 +414,6 @@ public:
         auto token = current_scope->find(ctx->getText());
         if(token.is_nullptr())
             return Type(Type::Undefined, ctx->start);
-        else if(token->kind != Symbol_::Kind::Variable && token->kind != Symbol_::Kind::Constant)
-            return Type(Type::NotAType, ctx->start);
         return Type(token, ctx->start);
     }
 
@@ -484,7 +508,7 @@ public:
         return pin_stmt(ctx->fqn(), ctx->expr(), ctx);
     }
     antlrcpp::Any visitSetPinModeStmt (eelParser::SetPinModeStmtContext* ctx) override {
-        return pin_stmt(ctx->fqn(), ctx->expr(), ctx); // TODO: FIX HERE AND IN THE GRAMMAR OR JUST IGNORE CUZ PAIN
+        return pin_stmt(ctx->fqn(), ctx->expr(), ctx);
     }
     antlrcpp::Any visitSetPinNumberStmt (eelParser::SetPinNumberStmtContext* ctx) override {
         return pin_stmt(ctx->fqn(), ctx->expr(), ctx);
@@ -507,7 +531,15 @@ public:
         if(expr.is_null()){
             new_error(Error::None, expr.token, ctx, "");
         } else if (!type_equals(expr, boolean)){
-            new_error(Error::TypeMisMatch, expr.token, ctx, "bool");
+            new_error(Error::TypeMisMatch, expr.token, ctx, boolean.get_type());
+        }
+        return expr;
+    }
+    antlrcpp::Any visitAwaitStmt (eelParser::AwaitStmtContext* ctx) override {
+        auto expr = any_cast<Type>(visit(ctx->expr()));
+        auto boolean = Type(Type::Kind::Bool, nullptr);
+        if(!type_equals(expr, boolean)){
+            new_error(Error::Kind::TypeMisMatch, expr.token, ctx, boolean.get_type());
         }
         return expr;
     }

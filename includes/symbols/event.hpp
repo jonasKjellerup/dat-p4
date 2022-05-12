@@ -25,7 +25,7 @@ namespace eel::symbols {
         /// \brief Whether the event has been awaited.
         bool is_awaited;
 
-        Function predicate;
+        Function* predicate;
 
         void add_handle(Scope scope, SymbolTable* table);
 

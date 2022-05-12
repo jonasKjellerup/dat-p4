@@ -88,7 +88,7 @@ namespace eel {
             symbols::Variable* variable;
             symbols::Constant* constant;
             symbols::Event* event;
-
+            symbols::Function* function;
             // NOTE: can't naively deallocate this one since
             //       some types (primitives) have static storage
             symbols::Type* type;
@@ -143,10 +143,11 @@ namespace eel {
         void declare_type(symbols::Type*);
 
         Symbol declare_event(const std::string& name);
-        Symbol declare_event(const std::string& name, symbols::Function& function);
+        Symbol declare_event(const std::string& name, symbols::Function* function);
         symbols::Event& declare_event_handle(const std::string& event_name);
 
         void declare_func();
+        Symbol declare_func(const std::string& name, Symbol return_type, Scope scope);
         void declare_namespace(const std::string& name);
 
         bool is_root();

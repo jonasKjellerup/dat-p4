@@ -285,7 +285,7 @@ namespaceDecl:
 ;
 
 onDecl:
-    On Identifier stmtBlock
+    On fqn stmtBlock
 ;
 
 stmt:
@@ -361,7 +361,7 @@ lockList:
 ;
 
 awaitStmt:
-    Await expr ;
+    Await expr ';' ;
 
 pinStmt:
     Set fqn expr # SetPinValueStmt

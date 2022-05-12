@@ -67,6 +67,8 @@ void Primitive::register_primitives(eel::Scope scope) {
     scope->declare_type(&f64);
     scope->declare_type(&f32);
 
+    scope->declare_type(&boolean);
+
     scope->declare_type(&digital);
     scope->declare_type(&analog);
 }

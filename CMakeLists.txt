@@ -29,8 +29,8 @@ add_library(compiler
         src/parsing.cc
         src/symbol_table.cc
         src/symbols/type.cc
-        src/symbols/error.cc
-        ssrc/symbols/event.cpp)
+        src/error.cc
+        src/symbols/event.cpp)
 target_link_libraries(compiler antlr4_static)
 
 add_executable(compiler_tests
@@ -39,5 +39,5 @@ add_executable(compiler_tests
         tests/test_symbol_table.cc)
 target_link_libraries(compiler_tests compiler)
 
-add_executable(compiler_cli src/cli.cc src/ScopeVisitor.cc)
+add_executable(compiler_cli src/cli.cc)
 target_link_libraries(compiler_cli compiler)

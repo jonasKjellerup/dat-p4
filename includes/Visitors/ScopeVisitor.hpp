@@ -4,6 +4,8 @@
 #include "symbol_table.hpp"
 #include "symbols/type.hpp"
 #include "symbols/variable.hpp"
+#include "symbols/event.hpp"
+
 using namespace eel;
 struct TypedIdentifier {
     Symbol type;
@@ -121,12 +123,24 @@ public:
         return visitChildren(ctx);
     }
     antlrcpp::Any visitEventDecl (eelParser::EventDeclContext* ctx) override {
-        return visitChildren(ctx);
+        auto predicate = ctx->stmtBlock();
+        if(predicate == nullptr){
+            current_scope->declare_event(ctx->Identifier()->getText());
+        } else {
+            auto name = ctx->Identifier()->getText();
+            auto func_name = "Event-" + name;
+            auto scope = any_cast<Scope>(visit(ctx->stmtBlock()));
+            auto symbol = current_scope->declare_func(func_name, current_scope->find("bool"), scope);
+            current_scope->declare_event(name, symbol->value.function);
+        }
+
+        return {};
     }
     antlrcpp::Any visitIntervalDecl (eelParser::IntervalDeclContext* ctx) override {
         return visitChildren(ctx);
     }
     antlrcpp::Any visitOnDecl (eelParser::OnDeclContext* ctx) override {
+        current_scope->declare_event_handle(ctx->fqn()->getText());
         return visitChildren(ctx);
     }
     antlrcpp::Any visitTraitDecl (eelParser::TraitDeclContext* ctx) override {
@@ -220,10 +234,11 @@ public:
         auto _previous_scope = previous_scope;
         previous_scope = current_scope;
         current_scope = table->derive_scope();
+        auto result = current_scope;
         visitChildren(ctx);
         current_scope = previous_scope;
         previous_scope = _previous_scope;
-        return {};
+        return result;
     }
     antlrcpp::Any visitForEachStmt (eelParser::ForEachStmtContext* ctx) override {
         auto array_symbol = current_scope->find(ctx->x3->getText());
@@ -248,5 +263,4 @@ public:
         }
         return {};
     }
-
 };

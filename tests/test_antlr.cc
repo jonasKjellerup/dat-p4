@@ -94,7 +94,7 @@ TEST_CASE("Comments", "[Lexer]" ){
 }
 
 TEST_CASE("T","T") {
-    ANTLRInputStream input("loop{if(2 == 3){u8 t = 0;}}");
+    ANTLRInputStream input("event x{return true;} loop{if(2 == 3){u8 t = 0;}} on y {await x;}");
     eelLexer lexer(&input);
     CommonTokenStream tokens(&lexer);
     tokens.fill();

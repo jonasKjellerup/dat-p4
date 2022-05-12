@@ -1,5 +1,6 @@
 #include <symbol_table.hpp>
 #include <symbols/type.hpp>
+#include <utility>
 #include <symbols/variable.hpp>
 #include <symbols/constant.hpp>
 #include <symbols/event.hpp>
@@ -176,6 +177,14 @@ static Symbol_& create_event_symbol(SymbolTable* context, const std::string& nam
     return symbol;
 }
 
+static Symbol_& create_function_symbol(SymbolTable* context, const std::string& name){
+    auto& symbol = context->new_symbol();
+    symbol.kind = Symbol_::Kind::Function;
+    symbol.name = name;
+    symbol.value.function = new symbols::Function;
+    return symbol;
+}
+
 Symbol Scope_::declare_event(const std::string& name) {
     auto root = this->context->root_scope;
     auto symbol = root->find(name);
@@ -194,7 +203,8 @@ Symbol Scope_::declare_event(const std::string& name) {
 
         symbol->value.event->is_complete = true;
     } else {
-        symbol = Symbol(&create_event_symbol(this->context, name));
+        auto& symbol_ref = create_event_symbol(this->context, name);
+        symbol = Symbol(symbol_ref.id, this->context);
         root->symbol_map.insert(std::make_pair(name, symbol->id));
     }
     auto& event = symbol->value.event;
@@ -207,7 +217,33 @@ Symbol Scope_::declare_event(const std::string& name) {
     return symbol;
 }
 
-Symbol Scope_::declare_event(const std::string& name, symbols::Function& function) {
+Symbol Scope_::declare_func(const std::string& name, Symbol return_type, Scope scope) {
+    auto root = this->context->root_scope;
+    auto symbol = root->find(name);
+
+    // If a symbol already exists
+    if (!symbol.is_nullptr()){
+        // TODO throw error
+        return {};
+    } else if (return_type.is_nullptr() || return_type->kind != Symbol_::Kind::Type){
+        // if the return symbol is not a type
+        // TODO throw error
+        return {};
+    }else {
+        auto& symbol_ref = create_function_symbol(this->context, name);
+        symbol = Symbol(symbol_ref.id, this->context);
+        root->symbol_map.insert(std::make_pair(name, symbol->id));
+    }
+    auto& function = symbol->value.function;
+    function->return_type = return_type;
+    function->has_return_type = true;
+    function->scope = scope;
+    function->parameters = std::vector<Symbol>();
+    return symbol;
+}
+
+
+Symbol Scope_::declare_event(const std::string& name, symbols::Function* function) {
     auto root = this->context->root_scope;
     auto symbol = root->find(name);
 
@@ -225,11 +261,11 @@ Symbol Scope_::declare_event(const std::string& name, symbols::Function& functio
 
         symbol->value.event->is_complete = true;
     } else {
-        symbol = Symbol(&create_event_symbol(this->context, name));
+        auto& symbol_ref = create_event_symbol(this->context, name);
+        symbol = Symbol(symbol_ref.id, this->context);
         root->symbol_map.insert(std::make_pair(name, symbol->id));
     }
     auto& event = symbol->value.event;
-
     event->predicate = function;
 
     event->has_predicate = true;
