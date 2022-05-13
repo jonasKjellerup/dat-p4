@@ -51,7 +51,7 @@ TEST_CASE("setting flags updates correct bits", "[StatusFlags]") {
     REQUIRE(flags.storage[3] == 0b00111010);
 }
 
-TEST_CASE("Event_::count_async_handles provides accurate count", "[Event_]") {
+TEST_CASE("Event_::count_async_handles provides accurate count", "[Event]") {
     struct F1 {};
     struct F2 {};
     struct AF1 : AsyncFunction {};
@@ -61,4 +61,41 @@ TEST_CASE("Event_::count_async_handles provides accurate count", "[Event_]") {
     REQUIRE(Event_<F1, AF1, F2>::count_async_handles() == 1);
     REQUIRE(Event_<F1, AF1, F2, AF2>::count_async_handles() == 2);
     REQUIRE(Event_<AF1, AF2>::count_async_handles() == 2);
+}
+
+/*
+ * Test semi equivalent to example:
+ *
+ * event predicateless_event;
+ *
+ * bool x = false;
+ *
+ * on predicateless_event {
+ *  x = true;
+ * }
+ *
+ * i16 x = 0;
+ *
+ * loop {
+ *  if (x++ == 1) {
+ *      emit predicateless_event;
+ *  }
+ * }
+ *
+ */
+TEST_CASE("predicate-less event is not dispatched until emitted", "[Event]") {
+    static bool x = false;
+    struct EventHandle {
+        static void invoke() {
+            x = true;
+        }
+    };
+    Event<PredicateLess, EventHandle> event;
+
+    run_handles(event);
+    REQUIRE(x == false); // we expect that the handle was not invoked
+    event.emit();
+    run_handles(event);
+    // since the event has been emitted the handle should have been invoked.
+    REQUIRE(x == true);
 }

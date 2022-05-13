@@ -1,3 +1,4 @@
+
 #pragma once
 
 #include <runtime/platform.hpp>
@@ -112,11 +113,16 @@ struct Event_ {
         handle_status.set(0, true);
     }
 
+    decltype(handle_status.get(0)) has_emit_flag() const {
+        return handle_status.get(0);
+    }
+
     void invoke_handles() {
-        auto i_status = 1;
+        size_t i_status = 1;
         // This is just a hack to call invoke_handle for each EventHandle given
         using arrT = int[];
-        static_cast<void>(arrT{(invoke_handle<EventHandles>(i_status, handle_status), 0)...}); // i++ here could maybe be ub
+        static_cast<void>(arrT{(InvokeHandle<EventHandles, decltype(handle_status), decltype(states)>
+                ::invoke(i_status, handle_status, states), 0)...});
     }
 };
 
@@ -148,14 +154,14 @@ struct Event<AsyncPredicate, EventHandles...> : Event_<EventHandles...> {
 
 template<typename... EventHandles>
 struct Event<PredicateLess, EventHandles...> : Event_<EventHandles...> {
-    [[nodiscard]] constexpr bool check() const __attribute__((always_inline)) { return false; }
+    [[nodiscard]] constexpr bool check() const { return false; }
 };
 
 
 
 template<typename Event>
-void try_dispatch_event(Event& event) {
-    if (event.check()) {
+void run_handles(Event& event) {
+    if (event.has_emit_flag() || event.check()) {
         event.invoke_handles();
     }
 }

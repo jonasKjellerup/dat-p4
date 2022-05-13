@@ -21,7 +21,7 @@ antlr_target(Eel ${PROJECT_SOURCE_DIR}/src/eel.g4
 
 include_directories(${ANTLR_Eel_OUTPUT_DIR})
 
-add_compile_options(-Wall -Wextra -pedantic -fconcepts)
+add_compile_options(-Wall -Wextra -pedantic)
 
 add_library(compiler
         ${ANTLR_Eel_CXX_OUTPUTS}
