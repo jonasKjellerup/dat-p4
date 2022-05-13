@@ -16,6 +16,10 @@
 // so we provide reimplemenations for some traits.
 #include <runtime/type_traits.hpp>
 
+#else
+
+#include <type_traits>
+
 #endif
 
 // We include arduino libraries if explicitly told to

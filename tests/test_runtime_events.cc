@@ -50,3 +50,15 @@ TEST_CASE("setting flags updates correct bits", "[StatusFlags]") {
     REQUIRE(flags.storage[2] == 0b11000011);
     REQUIRE(flags.storage[3] == 0b00111010);
 }
+
+TEST_CASE("Event_::count_async_handles provides accurate count", "[Event_]") {
+    struct F1 {};
+    struct F2 {};
+    struct AF1 : AsyncFunction {};
+    struct AF2 : AsyncFunction {};
+
+    REQUIRE(Event_<F1, F2>::count_async_handles() == 0);
+    REQUIRE(Event_<F1, AF1, F2>::count_async_handles() == 1);
+    REQUIRE(Event_<F1, AF1, F2, AF2>::count_async_handles() == 2);
+    REQUIRE(Event_<AF1, AF2>::count_async_handles() == 2);
+}
