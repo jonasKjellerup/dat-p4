@@ -10,12 +10,13 @@ include_directories(includes ${ANTLR4_INCLUDE_DIRS})
 
 set(ANTLR_EXECUTABLE ${PROJECT_SOURCE_DIR}/antlr.jar)
 find_package(ANTLR REQUIRED)
+find_package(Threads REQUIRED)
 
 
 
 link_directories(${ANTLR4CPP_LIBS})
 
-antlr_target(Eel ${PROJECT_SOURCE_DIR}/src/eel.g4
+antlr_target(Eel ${PROJECT_SOURCE_DIR}/src/eel.g4 VISITOR
         PACKAGE eel
         OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/antlr-build)
 
@@ -28,12 +29,18 @@ add_library(compiler
         ${ANTLR_Eel_CXX_OUTPUTS}
         src/parsing.cc
         src/symbol_table.cc
-        src/symbols/type.cc)
+        src/symbols/type.cc
+        src/error.cc
+        src/symbols/event.cpp)
 target_link_libraries(compiler antlr4_static)
+target_link_libraries(compiler Threads::Threads)
 
 add_executable(compiler_tests
         tests/entry.cc
-        tests/test_symbol_table.cc tests/test_runtime_events.cc)
+        tests/test_symbol_table.cc
+        tests/test_runtime_events.cc
+        tests/test_antlr.cc
+        tests/test_symbol_table.cc)
 target_link_libraries(compiler_tests compiler)
 
 add_executable(compiler_cli src/cli.cc)

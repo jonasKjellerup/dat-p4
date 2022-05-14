@@ -54,6 +54,7 @@ namespace eel::symbols {
         [[nodiscard]] const std::string& type_target_name() const override;
         [[nodiscard]] const std::string& type_source_name() const override;
 
+        Symbol::Id id;
     private:
         std::string source_name;
         std::string target_name;

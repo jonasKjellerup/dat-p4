@@ -1,6 +1,9 @@
 #include <symbol_table.hpp>
 #include <symbols/type.hpp>
+#include <utility>
 #include <symbols/variable.hpp>
+#include <symbols/constant.hpp>
+#include <symbols/event.hpp>
 
 using namespace eel;
 
@@ -116,17 +119,38 @@ void Scope_::declare_var(Symbol& type, const std::string& name, bool is_static) 
     this->symbol_map.insert(std::make_pair(name, symbol.id));
 }
 
+void Scope_::declare_const(Symbol& type, const std::string& name, ConstExpr expr) {
+    if (this->symbol_map.contains(name)) {
+        // TODO throw exception
+    }
+
+    auto& symbol = this->context->new_symbol();
+    symbol.kind = Symbol_::Kind::Variable;
+    symbol.name = name;
+
+    auto var = new symbols::Constant;
+    var->type = type;
+
+    symbol.value.constant = var;
+
+    this->symbol_map.insert(std::make_pair(name, symbol.id));
+}
+
 void Scope_::declare_type(symbols::Type* type) {
     auto& name = type->type_target_name();
     if (this->symbol_map.contains(name)) {
         // TODO throw exception
     }
 
-
     auto& symbol = this->context->new_symbol();
     symbol.kind = Symbol_::Kind::Type;
     symbol.name = name;
     symbol.value.type = type;
+
+    if (type->kind == symbols::Type::Kind::Primitive) {
+        auto p = dynamic_cast<symbols::Primitive*>(type);
+        p->id = symbol.id;
+    }
 
     this->symbol_map.insert(std::make_pair(name, symbol.id));
 }
@@ -142,6 +166,127 @@ void Scope_::declare_namespace(const std::string& name) {
     symbol.value.namespace_ = this->context->derive_scope(this);
 
     this->symbol_map.insert(std::make_pair(name, symbol.id));
+}
+
+static Symbol_& create_event_symbol(SymbolTable* context, const std::string& name) {
+    auto& symbol = context->new_symbol();
+    symbol.kind = Symbol_::Kind::Event;
+    symbol.name = name;
+    symbol.value.event = new symbols::Event;
+
+    return symbol;
+}
+
+static Symbol_& create_function_symbol(SymbolTable* context, const std::string& name){
+    auto& symbol = context->new_symbol();
+    symbol.kind = Symbol_::Kind::Function;
+    symbol.name = name;
+    symbol.value.function = new symbols::Function;
+    return symbol;
+}
+
+Symbol Scope_::declare_event(const std::string& name) {
+    auto root = this->context->root_scope;
+    auto symbol = root->find(name);
+
+    // If a symbol already exists
+    if (!symbol.is_nullptr()) {
+        if (symbol->kind != Symbol_::Kind::Event) {
+            // TODO throw error
+            return {};
+        }
+
+        if (symbol->value.event->is_complete) {
+            // TODO throw error
+            return {};
+        }
+
+        symbol->value.event->is_complete = true;
+    } else {
+        auto& symbol_ref = create_event_symbol(this->context, name);
+        symbol = Symbol(symbol_ref.id, this->context);
+        root->symbol_map.insert(std::make_pair(name, symbol->id));
+    }
+    auto& event = symbol->value.event;
+
+
+    event->has_predicate = false;
+    event->is_awaited = false;
+    event->is_complete = true;
+
+    return symbol;
+}
+
+Symbol Scope_::declare_func(const std::string& name, Symbol return_type, Scope scope) {
+    auto root = this->context->root_scope;
+    auto symbol = root->find(name);
+
+    // If a symbol already exists
+    if (!symbol.is_nullptr()){
+        // TODO throw error
+        return {};
+    } else if (return_type.is_nullptr() || return_type->kind != Symbol_::Kind::Type){
+        // if the return symbol is not a type
+        // TODO throw error
+        return {};
+    }else {
+        auto& symbol_ref = create_function_symbol(this->context, name);
+        symbol = Symbol(symbol_ref.id, this->context);
+        root->symbol_map.insert(std::make_pair(name, symbol->id));
+    }
+    auto& function = symbol->value.function;
+    function->return_type = return_type;
+    function->has_return_type = true;
+    function->scope = scope;
+    function->parameters = std::vector<Symbol>();
+    return symbol;
+}
+
+
+Symbol Scope_::declare_event(const std::string& name, symbols::Function* function) {
+    auto root = this->context->root_scope;
+    auto symbol = root->find(name);
+
+    // If a symbol already exists
+    if (!symbol.is_nullptr()) {
+        if (symbol->kind != Symbol_::Kind::Event) {
+            // TODO throw error
+            return {};
+        }
+
+        if (symbol->value.event->is_complete) {
+            // TODO throw error
+            return {};
+        }
+
+        symbol->value.event->is_complete = true;
+    } else {
+        auto& symbol_ref = create_event_symbol(this->context, name);
+        symbol = Symbol(symbol_ref.id, this->context);
+        root->symbol_map.insert(std::make_pair(name, symbol->id));
+    }
+    auto& event = symbol->value.event;
+    event->predicate = function;
+
+    event->has_predicate = true;
+    event->is_awaited = false;
+    event->is_complete = true;
+
+    return symbol;
+}
+
+symbols::Event& Scope_::declare_event_handle(const std::string& event_name) {
+    auto root = this->context->root_scope;
+    auto event_symbol = root->find(event_name);
+
+    // if the event_symbol was not found create it and mark as incomplete
+    if (event_symbol.is_nullptr()) {
+        event_symbol = root->declare_event(event_name);
+        event_symbol->value.event->is_complete = false;
+    }
+
+    event_symbol->value.event->add_handle(root, this->context);
+    return *event_symbol->value.event;
 }
 
 /*
