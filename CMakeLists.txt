@@ -10,6 +10,7 @@ include_directories(includes ${ANTLR4_INCLUDE_DIRS})
 
 set(ANTLR_EXECUTABLE ${PROJECT_SOURCE_DIR}/antlr.jar)
 find_package(ANTLR REQUIRED)
+find_package(Threads REQUIRED)
 
 
 
@@ -32,6 +33,7 @@ add_library(compiler
         src/error.cc
         src/symbols/event.cpp)
 target_link_libraries(compiler antlr4_static)
+target_link_libraries(compiler Threads::Threads)
 
 add_executable(compiler_tests
         tests/entry.cc
