@@ -24,6 +24,11 @@ include_directories(${ANTLR_Eel_OUTPUT_DIR})
 
 add_compile_options(-Wall -Wextra -pedantic)
 
+add_library(fmt
+        src/fmt/fmt.cc
+        src/fmt/format.cc
+        src/fmt/os.cc)
+
 add_library(compiler
         ${ANTLR_Eel_CXX_OUTPUTS}
         ${ANTLR_Eel_CXX_OUTPUTS}
@@ -31,7 +36,8 @@ add_library(compiler
         src/symbol_table.cc
         src/symbols/type.cc
         src/error.cc
-        src/symbols/event.cpp)
+        src/symbols/event.cpp src/visitors/codegen.cc)
+target_link_libraries(compiler fmt)
 target_link_libraries(compiler antlr4_static)
 target_link_libraries(compiler Threads::Threads)
 

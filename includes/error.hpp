@@ -33,3 +33,18 @@ public:
     void print();
 
 };
+
+struct InternalError : std::exception {
+public:
+    enum Subsystem {
+        Codegen = 0,
+        SymbolTable,
+    };
+
+    InternalError(Subsystem src, const char* msg);
+    InternalError(Subsystem src, std::string&& msg);
+    void print() const;
+
+    Subsystem src;
+    std::string msg;
+};

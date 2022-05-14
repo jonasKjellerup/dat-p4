@@ -7,9 +7,6 @@
 
 namespace eel::symbols {
 
-
-    struct EventHandle {};
-
     struct Event {
     public:
         /// \brief Whether the event occurrence
@@ -27,6 +24,10 @@ namespace eel::symbols {
 
         Function* predicate;
 
+        std::string id;
+
+        void compute_id(Symbol symbol);
+
         void add_handle(Scope scope, SymbolTable* table);
 
         [[nodiscard]] const std::vector<Function>& get_handles() const;
@@ -35,4 +36,5 @@ namespace eel::symbols {
     private:
         std::vector<Function> event_handles;
     };
+
 }

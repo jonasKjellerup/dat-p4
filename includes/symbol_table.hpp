@@ -59,7 +59,7 @@ namespace eel {
         using Id = size_t;
 
         enum struct Kind {
-            None,
+            None = 0,
             Variable,
             Constant,
             Function,

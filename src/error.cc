@@ -69,3 +69,16 @@ Error::Pos::Pos() {
     this->l = 0;
     this->c = 0;
 }
+
+InternalError::InternalError(Subsystem src, const char* msg) : src(src), msg(msg) {}
+
+
+InternalError::InternalError(Subsystem src, std::string&& msg) : src(src), msg(msg) {
+
+}
+
+static const char* error_labels[] = {"Codegen", "SymbolTable"};
+
+void InternalError::print() const {
+    std::cout << '[' << error_labels[src] << "] " << msg << std::endl;
+}

@@ -62,6 +62,7 @@ private:
             return value.literal;
         }
 
+        // TODO consider replacing this with a lookup table
         [[nodiscard]] std::string literal_str() const {
             std::string res;
             switch (value.literal) {
