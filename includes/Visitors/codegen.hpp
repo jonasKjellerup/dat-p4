@@ -7,9 +7,9 @@
 
 namespace eel::visitors {
     using namespace eel;
+    using std::any;
 
     struct CodegenVisitor : eel::eelBaseVisitor {
-        using Any = antlrcpp::Any;
 
         SymbolTable& table;
         FILE* stream;
@@ -18,11 +18,35 @@ namespace eel::visitors {
 
         CodegenVisitor(SymbolTable& table, FILE* stream);
 
-        Any visitIdentifier(eelParser::IdentifierContext *ctx) override;
-        Any visitVariableDecl(eelParser::VariableDeclContext* ctx) override;
+        any visitProgram(eelParser::ProgramContext *ctx) override;
 
-        Any visitEventDecl(eelParser::EventDeclContext* ctx) override;
-        Any visitPinDecl(eelParser::PinDeclContext *ctx) override;
+        // Expressions - Literals
+        any visitBoolLiteral(eelParser::BoolLiteralContext *ctx) override;
+        any visitCharLiteral(eelParser::CharLiteralContext *ctx) override;
+        any visitFloatLiteral(eelParser::FloatLiteralContext *ctx) override;
+        any visitIntegerLiteral(eelParser::IntegerLiteralContext *ctx) override;
+        any visitStringLiteral(eelParser::StringLiteralContext *ctx) override;
+
+        // Expressions - Access
+        any visitIdentifier(eelParser::IdentifierContext *ctx) override;
+
+        // Expressions - Arithmetic operators
+        any visitPos(eelParser::PosContext *ctx) override;
+        any visitNeg(eelParser::NegContext *ctx) override;
+        any visitScalingExpr(eelParser::ScalingExprContext *ctx) override;
+        any visitAdditiveExpr(eelParser::AdditiveExprContext *ctx) override;
+
+        // Expressions - Logical/comparative operators
+
+        any visitComparisonExpr(eelParser::ComparisonExprContext *ctx) override;
+        any visitNot(eelParser::NotContext *ctx) override;
+
+        // Declarations
+        any visitVariableDecl(eelParser::VariableDeclContext* ctx) override;
+        any visitSetupDecl(eelParser::SetupDeclContext *ctx) override;
+        any visitLoopDecl(eelParser::LoopDeclContext *ctx) override;
+        any visitEventDecl(eelParser::EventDeclContext* ctx) override;
+        any visitPinDecl(eelParser::PinDeclContext *ctx) override;
 
     };
 }

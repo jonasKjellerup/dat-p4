@@ -77,8 +77,8 @@ InternalError::InternalError(Subsystem src, std::string&& msg) : src(src), msg(m
 
 }
 
-static const char* error_labels[] = {"Codegen", "SymbolTable"};
-
 void InternalError::print() const {
+    static const char* error_labels[] = {"Codegen", "SymbolTable", "ScopeAnalysis"};
+
     std::cout << '[' << error_labels[src] << "] " << msg << std::endl;
 }

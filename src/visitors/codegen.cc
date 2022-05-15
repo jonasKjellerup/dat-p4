@@ -4,10 +4,12 @@
 #include <symbols/type.hpp>
 #include <error.hpp>
 
+#include <functional>
 #include <fmt/core.h>
 
 using namespace eel;
 using namespace eel::visitors;
+using std::any;
 
 const char* kind_labels[] = {
         "None", "Variable", "Constant",
@@ -15,19 +17,83 @@ const char* kind_labels[] = {
         "Event", "Indirect"
 };
 
+/// Generates and writes an event Symbol to the given stream.
 static void generate_event(FILE* stream, Symbol event);
+
+/// \brief Generates a functor type for a synchronous function.
+/// \param stream The output stream where the functor is written.
+/// \param function The function for which the functor is being generated
+/// \param invoke_generator A function that is responsible for calling
+///                         the necessary functions for generating the invoke body.
+static void generate_sync_functor_type(
+        FILE* stream,
+        const symbols::Function& function,
+        const std::function<void()>& invoke_generator
+);
+
+/// Generates the body of a function type based of a Functions definition
+/// and writes it to the stream.
 static void generate_function_type_body(FILE* stream, const symbols::Function& function);
+
+/// Generate a variable identifier, for use in the generated c++ code.
 static std::string generate_variable_id(Symbol symbol);
+
+/// Check if a Symbol is non-null and is of correct kind.
+/// \throws InternalError If null or kind != expected_kind
 static void check_symbol(Symbol symbol, Symbol_::Kind expected_kind, const std::string& identifier);
+
+/// Substitutes the symbol with the indirect symbol if of indirect kind.
 static void resolve(Symbol& symbol, SymbolTable& table);
 
 
 CodegenVisitor::CodegenVisitor(eel::SymbolTable& table, FILE* stream)
-: table(table), stream(stream) {
+        : table(table), stream(stream) {
     current_scope = table.root_scope;
 }
 
-CodegenVisitor::Any CodegenVisitor::visitIdentifier(eelParser::IdentifierContext *ctx) {
+any CodegenVisitor::visitProgram(eelParser::ProgramContext* ctx) {
+    fmt::print(stream, "#include <runtime/all.hpp>\n");
+    visitChildren(ctx);
+
+    // TODO
+    fmt::print(stream, "int main(void) { return 0; }\n");
+    return {};
+}
+
+/*
+ * Expressions - All expression visitors should produce
+ *             a std::string object.
+ */
+
+/*
+ * Literal expressions
+ */
+any CodegenVisitor::visitBoolLiteral(eelParser::BoolLiteralContext* ctx) {
+    // our boolean literals are a 1:1 match with c++ literals
+    return ctx->BoolLiteral()->getText();
+}
+
+any CodegenVisitor::visitCharLiteral(eelParser::CharLiteralContext* ctx) {
+    return ctx->getText(); // TODO our character literals are not a 1:1 with c++
+}
+
+any CodegenVisitor::visitFloatLiteral(eelParser::FloatLiteralContext* ctx) {
+    return eelBaseVisitor::visitFloatLiteral(ctx);// TODO
+}
+
+any CodegenVisitor::visitIntegerLiteral(eelParser::IntegerLiteralContext* ctx) {
+    return {}; // TODO
+}
+
+any CodegenVisitor::visitStringLiteral(eelParser::StringLiteralContext* ctx) {
+    return {}; // TODO
+}
+
+/*
+ * Access expressions
+ */
+
+any CodegenVisitor::visitIdentifier(eelParser::IdentifierContext* ctx) {
     auto identifier = ctx->Identifier()->getText();
     auto symbol = current_scope->find(identifier);
 
@@ -37,7 +103,96 @@ CodegenVisitor::Any CodegenVisitor::visitIdentifier(eelParser::IdentifierContext
     return generate_variable_id(symbol);
 }
 
-CodegenVisitor::Any CodegenVisitor::visitPinDecl(eelParser::PinDeclContext* ctx) {
+/*
+ * Arithmetic operators
+ */
+
+any CodegenVisitor::visitPos(eelParser::PosContext* ctx) {
+    return visit(ctx->expr());
+}
+
+any CodegenVisitor::visitNeg(eelParser::NegContext* ctx) {
+    return fmt::format("-({})", std::any_cast<std::string>(visit(ctx->expr())));
+}
+
+any CodegenVisitor::visitScalingExpr(eelParser::ScalingExprContext* ctx) {
+    return fmt::format("({}){}({})",
+                       std::any_cast<std::string>(visit(ctx->left)),
+                       ctx->op->getText(),
+                       std::any_cast<std::string>(visit(ctx->right)));
+}
+
+any CodegenVisitor::visitAdditiveExpr(eelParser::AdditiveExprContext* ctx) {
+    return fmt::format("({}){}({})",
+                       std::any_cast<std::string>(visit(ctx->left)),
+                       ctx->op->getText(),
+                       std::any_cast<std::string>(visit(ctx->right)));
+}
+
+/*
+ * Logical/comparative operators
+ */
+
+any CodegenVisitor::visitComparisonExpr(eelParser::ComparisonExprContext* ctx) {
+    return fmt::format("({}){}({})",
+                       std::any_cast<std::string>(visit(ctx->left)),
+                       ctx->op->getText(),
+                       std::any_cast<std::string>(visit(ctx->right)));
+}
+
+any CodegenVisitor::visitNot(eelParser::NotContext* ctx) {
+    return fmt::format("!({})", std::any_cast<std::string>(visit(ctx->expr())));
+}
+
+/*
+ * Declarations
+ */
+
+any CodegenVisitor::visitVariableDecl(eelParser::VariableDeclContext* ctx) {
+    auto identifier = ctx->typedIdentifier()->Identifier()->getText();
+    auto symbol = current_scope->find(identifier);
+
+    check_symbol(symbol, Symbol_::Kind::Variable, identifier);
+    auto variable = symbol->value.variable;
+    auto type = variable->type;
+
+    if (variable->has_value) {
+        fmt::print(stream, "{} {} = {};",
+                   type->value.type->type_target_name(),
+                   generate_variable_id(symbol),
+                   std::any_cast<std::string>(visit(ctx->expr())));
+    } else {
+        fmt::print(stream, "{} {};",
+                   type->value.type->type_target_name(),
+                   generate_variable_id(symbol));
+    }
+
+    return {};
+}
+
+any CodegenVisitor::visitSetupDecl(eelParser::SetupDeclContext* ctx) {
+    // TODO handle async
+    auto symbol = current_scope->find("__eel_setup");
+
+    generate_sync_functor_type(stream, *symbol->value.function, [this, ctx]() {
+        this->visit(ctx->stmtBlock());
+    });
+
+    return {};
+}
+
+any CodegenVisitor::visitLoopDecl(eelParser::LoopDeclContext* ctx) {
+    // TODO handle async
+    auto symbol = current_scope->find("__eel_loop");
+
+    generate_sync_functor_type(stream, *symbol->value.function, [this, ctx]() {
+        this->visit(ctx->stmtBlock());
+    });
+
+    return {};
+}
+
+any CodegenVisitor::visitPinDecl(eelParser::PinDeclContext* ctx) {
     auto identifier = ctx->Identifier()->getText();
     auto symbol = current_scope->find(identifier);
 
@@ -60,7 +215,7 @@ CodegenVisitor::Any CodegenVisitor::visitPinDecl(eelParser::PinDeclContext* ctx)
     return {};
 }
 
-CodegenVisitor::Any CodegenVisitor::visitEventDecl(eelParser::EventDeclContext* ctx) {
+any CodegenVisitor::visitEventDecl(eelParser::EventDeclContext* ctx) {
     auto symbol = table.root_scope->find(ctx->Identifier()->getText());
     if (symbol->kind == Symbol_::Kind::Event)
         throw InternalError(InternalError::Codegen, "Invalid symbol. Expected event.");
@@ -84,13 +239,14 @@ CodegenVisitor::Any CodegenVisitor::visitEventDecl(eelParser::EventDeclContext* 
     return eelBaseVisitor::visitEventDecl(ctx);
 }
 
+
 void generate_event(FILE* stream, Symbol event) {
     static const std::string predicateless_type = "PredicateLess";
 
     // Generate function types for event handles
     auto& handles = event->value.event->get_handles();
 
-    for (auto& handle : handles) {
+    for (auto& handle: handles) {
         fmt::print(stream, "struct {}", handle.type_id);
         // TODO add check for async function
         generate_function_type_body(stream, handle);
@@ -103,11 +259,23 @@ void generate_event(FILE* stream, Symbol event) {
 
     //
     fmt::print(stream, "Event<{}", predicate_type);
-    for (auto& handle : handles) {
+    for (auto& handle: handles) {
         fmt::print(stream, ", {}", handle.type_id);
     }
 
     fmt::print(stream, "> {};\n", event->value.event->id);
+}
+
+void generate_sync_functor_type(
+        FILE* stream,
+        const symbols::Function& function,
+        const std::function<void()>& invoke_generator
+) {
+    fmt::print(stream,
+               "struct {} {{ static void invoke() {{",
+               function.type_id);
+    invoke_generator();
+    fmt::print(stream, " }} }};");
 }
 
 void generate_function_type_body(FILE* stream, const symbols::Function& function) {

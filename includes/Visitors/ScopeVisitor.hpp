@@ -20,11 +20,10 @@ public:
      * */
     SymbolTable* table;
     Scope current_scope;
-    Scope previous_scope;
     explicit ScopeVisitor(SymbolTable* _table) {
         table = _table;
         symbols::Primitive::register_primitives(table->root_scope);
-        current_scope = previous_scope = table->root_scope;
+        current_scope = table->root_scope;
     }
 
     /*
@@ -42,6 +41,9 @@ public:
     /*
      * Top level declarations
      * */
+    std::any visitSetupDecl(eelParser::SetupDeclContext *ctx) override;
+    std::any visitLoopDecl(eelParser::LoopDeclContext *ctx) override;
+
     antlrcpp::Any visitIncludeDirective (eelParser::IncludeDirectiveContext* ctx) override {
         return visitChildren(ctx);
     }
@@ -122,20 +124,8 @@ public:
     antlrcpp::Any visitEnumDecl (eelParser::EnumDeclContext* ctx) override {
         return visitChildren(ctx);
     }
-    antlrcpp::Any visitEventDecl (eelParser::EventDeclContext* ctx) override {
-        auto predicate = ctx->stmtBlock();
-        if(predicate == nullptr){
-            current_scope->declare_event(ctx->Identifier()->getText());
-        } else {
-            auto name = ctx->Identifier()->getText();
-            auto func_name = "Event-" + name;
-            auto scope = any_cast<Scope>(visit(ctx->stmtBlock()));
-            auto symbol = current_scope->declare_func(func_name, current_scope->find("bool"), scope);
-            current_scope->declare_event(name, symbol->value.function);
-        }
+    antlrcpp::Any visitEventDecl (eelParser::EventDeclContext* ctx) override;
 
-        return {};
-    }
     antlrcpp::Any visitIntervalDecl (eelParser::IntervalDeclContext* ctx) override {
         return visitChildren(ctx);
     }
@@ -233,14 +223,12 @@ public:
      * Statements
      * */
     antlrcpp::Any visitStmtBlock (eelParser::StmtBlockContext* ctx) override {
-        auto _previous_scope = previous_scope;
-        previous_scope = current_scope;
-        current_scope = table->derive_scope();
-        auto result = current_scope;
+        auto outer_scope = current_scope;
+        auto inner_scope = table->derive_scope(outer_scope);
+        current_scope = inner_scope;
         visitChildren(ctx);
-        current_scope = previous_scope;
-        previous_scope = _previous_scope;
-        return result;
+        current_scope = outer_scope;
+        return inner_scope;
     }
     antlrcpp::Any visitForEachStmt (eelParser::ForEachStmtContext* ctx) override {
         auto array_symbol = current_scope->find(ctx->x3->getText());

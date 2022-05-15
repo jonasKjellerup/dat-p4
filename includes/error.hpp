@@ -39,6 +39,7 @@ public:
     enum Subsystem {
         Codegen = 0,
         SymbolTable,
+        ScopeAnalysis,
     };
 
     InternalError(Subsystem src, const char* msg);

@@ -1,9 +1,11 @@
 #include <symbol_table.hpp>
 #include <symbols/type.hpp>
-#include <utility>
 #include <symbols/variable.hpp>
 #include <symbols/constant.hpp>
 #include <symbols/event.hpp>
+
+#include <utility>
+#include <fmt/core.h>
 
 using namespace eel;
 
@@ -217,28 +219,51 @@ Symbol Scope_::declare_event(const std::string& name) {
     return symbol;
 }
 
-Symbol Scope_::declare_func(const std::string& name, Symbol return_type, Scope scope) {
+Symbol Scope_::declare_func(const std::string& name) {
     auto root = this->context->root_scope;
     auto symbol = root->find(name);
 
     // If a symbol already exists
-    if (!symbol.is_nullptr()){
+    if (!symbol.is_nullptr()) {
+        // TODO throw error
+        return {};
+    } else {
+        auto& symbol_ref = create_function_symbol(this->context, name);
+        symbol = Symbol(symbol_ref.id, this->context);
+        root->symbol_map.insert(std::make_pair(name, symbol->id));
+    }
+    auto& function = *symbol->value.function;
+    function.has_return_type = false;
+    function.scope = this->context->derive_scope(root);
+    function.parameters = std::vector<Symbol>();
+    function.type_id = fmt::format("func{}_{}", symbol->id, name);
+
+    return symbol;
+}
+
+Symbol Scope_::declare_func(const std::string& name, Symbol return_type) {
+    auto root = this->context->root_scope;
+    auto symbol = root->find(name);
+
+    // If a symbol already exists
+    if (!symbol.is_nullptr()) {
         // TODO throw error
         return {};
     } else if (return_type.is_nullptr() || return_type->kind != Symbol_::Kind::Type){
         // if the return symbol is not a type
         // TODO throw error
         return {};
-    }else {
+    } else {
         auto& symbol_ref = create_function_symbol(this->context, name);
         symbol = Symbol(symbol_ref.id, this->context);
         root->symbol_map.insert(std::make_pair(name, symbol->id));
     }
-    auto& function = symbol->value.function;
+    auto function = symbol->value.function;
     function->return_type = return_type;
     function->has_return_type = true;
-    function->scope = scope;
+    function->scope = this->context->derive_scope(root);
     function->parameters = std::vector<Symbol>();
+
     return symbol;
 }
 

@@ -5,6 +5,7 @@
 #include <vector>
 
 #include <symbols/forward_decl.hpp>
+#include <error.hpp>
 
 // Temporary declarations of SymbolDefinitions
 
@@ -146,8 +147,20 @@ namespace eel {
         Symbol declare_event(const std::string& name, symbols::Function* function);
         symbols::Event& declare_event_handle(const std::string& event_name);
 
-        void declare_func();
-        Symbol declare_func(const std::string& name, Symbol return_type, Scope scope);
+        /// \brief Declares a function by the given name, with no return type.
+        /// The function is always declared in the root scope
+        /// event when called on a non-root scope.
+        /// \param name The name of the function that is being declared.
+        /// \returns The newly created function symbol.
+        Symbol declare_func(const std::string& name);
+
+        /// \brief Declares a function by the given name.
+        /// The function is always declared in the root scope
+        /// event when called on a non-root scope.
+        /// \param name The name of the function that is being declared.
+        /// \param return_type A type symbol representing the return type.
+        /// \returns The newly created function symbol.
+        Symbol declare_func(const std::string& name, Symbol return_type);
         void declare_namespace(const std::string& name);
 
         bool is_root();
