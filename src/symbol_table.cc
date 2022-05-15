@@ -217,7 +217,7 @@ Symbol Scope_::declare_event(const std::string& name) {
     return symbol;
 }
 
-Symbol Scope_::declare_func(const std::string& name, Symbol return_type, Scope scope) {
+Symbol Scope_::declare_func(const std::string& name, Symbol return_type) {
     auto root = this->context->root_scope;
     auto symbol = root->find(name);
 
@@ -225,7 +225,7 @@ Symbol Scope_::declare_func(const std::string& name, Symbol return_type, Scope s
     if (!symbol.is_nullptr()){
         // TODO throw error
         return {};
-    } else if (return_type.is_nullptr() || return_type->kind != Symbol_::Kind::Type){
+    } else if (!return_type.is_nullptr() && return_type->kind != Symbol_::Kind::Type){
         // if the return symbol is not a type
         // TODO throw error
         return {};
@@ -237,7 +237,6 @@ Symbol Scope_::declare_func(const std::string& name, Symbol return_type, Scope s
     auto& function = symbol->value.function;
     function->return_type = return_type;
     function->has_return_type = true;
-    function->scope = scope;
     function->parameters = std::vector<Symbol>();
     return symbol;
 }

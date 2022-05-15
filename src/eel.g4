@@ -401,31 +401,31 @@ expr:
     | Read fqn # ReadPinExpr
     | expr As type # CastExpr
 
-    | <assoc=right> '+' left=expr # Pos
-    | <assoc=right> '-' left=expr # Neg
-    | <assoc=right> '!' left=expr # Not
-    | <assoc=right> '~' left=expr # BitComp
-    | <assoc=right> '*' left=expr # Deref
+    | <assoc=right> '+' right=expr # Pos
+    | <assoc=right> '-' right=expr # Neg
+    | <assoc=right> '!' right=expr # Not
+    | <assoc=right> '~' right=expr # BitComp
+    | <assoc=right> '*' right=expr # Deref
 
-    | <assoc=left> right=expr op=('/'|'*'|'%') left=expr # ScalingExpr
-    | <assoc=left> right=expr op=('+'|'-') left=expr # AdditiveExpr
-    | <assoc=left> right=expr op=('>>'|'>>>' |'<<') left=expr # ShiftingExpr
-    | <assoc=left> right=expr op=('>'|'>='|'<='|'=='|'!=') left=expr # ComparisonExpr
+    | <assoc=left> left=expr op=('/'|'*'|'%') right=expr # ScalingExpr
+    | <assoc=left> left=expr op=('+'|'-') right=expr # AdditiveExpr
+    | <assoc=left> left=expr op=('>>'|'>>>' |'<<') right=expr # ShiftingExpr
+    | <assoc=left> left=expr op=('>'|'>='|'<='|'=='|'!=') right=expr # ComparisonExpr
 
-    | <assoc=left> right=expr '&' left=expr # AndExpr
-    | <assoc=left> right=expr '^' left=expr # XorExpr
-    | <assoc=left> right=expr '|' left=expr # OrExpr
+    | <assoc=left> left=expr '&' right=expr # AndExpr
+    | <assoc=left> left=expr '^' right=expr # XorExpr
+    | <assoc=left> left=expr '|' right=expr # OrExpr
 
-    | <assoc=left> right=expr '&&' left=expr # LAndExpr
-    | <assoc=left> right=expr '||' left=expr # LOrExpr
+    | <assoc=left> left=expr '&&' right=expr # LAndExpr
+    | <assoc=left> left=expr '||' right=expr # LOrExpr
 
-    | <assoc=right> right=expr '=' left=expr # AssignExpr
+    | <assoc=right> var=expr '=' right=expr # AssignExpr
 
-    | <assoc=right> right=expr op=('-='|'+=') left=expr # AdditiveAssignExpr
-    | <assoc=right> right=expr op=('/='|'*='|'%=') left=expr # ScalingAssignExpr
-    | <assoc=right> right=expr op=('>>='|'>>>='|'<<=') left=expr # ShiftingAssignExpr
+    | <assoc=right> var=expr op=('-='|'+=') right=expr # AdditiveAssignExpr
+    | <assoc=right> var=expr op=('/='|'*='|'%=') right=expr # ScalingAssignExpr
+    | <assoc=right> var=expr op=('>>='|'>>>='|'<<=') right=expr # ShiftingAssignExpr
 
-    | <assoc=right> right=expr '|=' left=expr # OrAssignExpr
-    | <assoc=right> right=expr '&=' left=expr # AndAssignExpr
-    | <assoc=right> right=expr '^=' left=expr # XorAssignExpr
+    | <assoc=right> var=expr '|=' right=expr # OrAssignExpr
+    | <assoc=right> var=expr '&=' right=expr # AndAssignExpr
+    | <assoc=right> var=expr '^=' right=expr # XorAssignExpr
 ;

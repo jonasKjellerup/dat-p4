@@ -147,7 +147,7 @@ namespace eel {
         symbols::Event& declare_event_handle(const std::string& event_name);
 
         void declare_func();
-        Symbol declare_func(const std::string& name, Symbol return_type, Scope scope);
+        Symbol declare_func(const std::string& name, Symbol return_type);
         void declare_namespace(const std::string& name);
 
         bool is_root();

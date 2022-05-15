@@ -31,7 +31,9 @@ add_library(compiler
         src/symbol_table.cc
         src/symbols/type.cc
         src/error.cc
-        src/symbols/event.cpp)
+        src/symbols/event.cpp
+        src/Visitors/ScopeVisitor.cc
+        src/Visitors/TypeVisitor.cc)
 target_link_libraries(compiler antlr4_static)
 target_link_libraries(compiler Threads::Threads)
 
