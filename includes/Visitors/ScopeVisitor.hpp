@@ -194,6 +194,8 @@ public:
     /*
      * Access Expressions
      * */
+    antlrcpp::Any visitIdentifier(eelParser::IdentifierContext *ctx) override;
+
     antlrcpp::Any visitFqnExpr (eelParser::FqnExprContext* ctx) override {
         return visitChildren(ctx);
     }
