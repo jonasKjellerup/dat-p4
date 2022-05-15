@@ -56,7 +56,7 @@ any CodegenVisitor::visitProgram(eelParser::ProgramContext* ctx) {
     visitChildren(ctx);
 
     // TODO
-    fmt::print(stream, "int main(void) { return 0; }\n");
+    fmt::print(stream, "int main(void) {{ return 0; }}\n");
     return {};
 }
 
