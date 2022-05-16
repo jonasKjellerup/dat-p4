@@ -40,7 +40,7 @@ target_link_libraries(compiler Threads::Threads)
 add_executable(compiler_tests
         tests/entry.cc
         tests/test_antlr.cc
-        tests/test_symbol_table.cc tests/test_scope_visitor.cc)
+        tests/test_symbol_table.cc tests/test_scope_visitor.cc tests/test_type_visitor.cc)
 target_link_libraries(compiler_tests compiler)
 
 add_executable(compiler_cli src/cli.cc)

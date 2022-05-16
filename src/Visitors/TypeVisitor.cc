@@ -186,6 +186,8 @@ bool TypeVisitor::Type::equals(TypeVisitor::Type* other) {
             case Type::Kind::Float:
                 if(symbol->symbol()->id == 8 || symbol->symbol()->id == 9) return true;
                 break;
+            case Type::Kind::Bool:
+                if(symbol->symbol()->id == 10) return true;
             default: // TODO: missing primitives for strings and chars
                 return false;
         }
@@ -198,10 +200,11 @@ bool TypeVisitor::Type::equals(TypeVisitor::Type* other) {
 }
 
 TypeVisitor::TypeVisitor(SymbolTable* _table) {
-    table = _table;
-    current_scope = previous_scope = table->root_scope;
-    expected_type = Type();
-    scope_index = 0;
+    this->table = _table;
+    this->current_scope = previous_scope = table->root_scope;
+    this->current_function = nullptr;
+    this->expected_type = Type();
+    this->scope_index = 0;
 }
 
 
@@ -209,6 +212,26 @@ TypeVisitor::TypeVisitor(SymbolTable* _table) {
 
 antlrcpp::Any TypeVisitor::visitProgram(eelParser::ProgramContext* ctx) {
     return eelBaseVisitor::visitProgram(ctx);
+}
+
+
+/*
+ * Top level declarations
+ * */
+antlrcpp::Any TypeVisitor::visitLoopDecl(eelParser::LoopDeclContext* ctx) {
+    Symbol func = current_scope->find("loop");
+    this->current_function = func->value.function;
+    visitChildren(ctx);
+    this->current_function = nullptr;
+    return {};
+}
+
+antlrcpp::Any TypeVisitor::visitSetupDecl(eelParser::SetupDeclContext* ctx) {
+    Symbol func = current_scope->find("setup");
+    this->current_function = func->value.function;
+    visitChildren(ctx);
+    this->current_function = nullptr;
+    return {};
 }
 
 
@@ -329,7 +352,7 @@ antlrcpp::Any TypeVisitor::visitEventDecl(eelParser::EventDeclContext* ctx) {
         if(event->kind != Symbol_::Kind::Event){
             // TODO THROW ERROR
         } else {
-            this->current_function = event->value.function;
+            this->current_function = event->value.event->predicate;
             visitChildren(ctx);
             this->current_function = nullptr;
         }
@@ -677,18 +700,28 @@ antlrcpp::Any TypeVisitor::visitAwaitStmt(eelParser::AwaitStmtContext* ctx) {
 }
 
 antlrcpp::Any TypeVisitor::visitReturnStmt(eelParser::ReturnStmtContext* ctx) {
-    auto expr = any_cast<Type>(visit(ctx->expr()));
-    if(!this->current_function->has_return_type){
-        auto error = new_error(Error::Kind::TypeMisMatch, expr.token, ctx, "none");
-        this->errors.push_back(error);
-    } else {
-        auto return_type = Type(this->current_function->return_type, nullptr);
-        if(!expr.equals(&return_type)){
-            auto error = new_error(Error::Kind::TypeMisMatch, expr.token, ctx, return_type.to_string());
+    if(nullptr == ctx->expr()){
+        if(this->current_function->has_return_type){
+            auto return_type = Type(this->current_function->return_type, nullptr);
+            auto error = new_error(Error::Kind::InvalidReturnType, ctx->start, ctx, return_type.to_string());
             this->errors.push_back(error);
         }
+    } else {
+        auto expr = any_cast<Type>(visit(ctx->expr()));
+        auto undefined = Type(Type::Kind::Undefined, nullptr);
+        if(!this->current_function->has_return_type && !expr.equals(&undefined)){
+            auto error = new_error(Error::Kind::InvalidReturnType, expr.token, ctx, "return;");
+            this->errors.push_back(error);
+        } else {
+            auto return_type = Type(this->current_function->return_type, nullptr);
+            if(!expr.equals(&return_type)){
+                auto error = new_error(Error::Kind::InvalidReturnType, expr.token, ctx, return_type.to_string());
+                this->errors.push_back(error);
+            }
+        }
+        return expr;
     }
-    return expr;
+    return Type(Type::Kind::None, nullptr);
 }
 
 /*

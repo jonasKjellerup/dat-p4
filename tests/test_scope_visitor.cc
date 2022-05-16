@@ -9,24 +9,20 @@ using namespace std;
 using namespace antlr4;
 using namespace eel;
 
-#define GET_TOKENS(String, Result) \
+#define SCOPE_ANALYSIS(String) \
     ANTLRInputStream input(String); \
     eelLexer lexer(&input); \
     CommonTokenStream tokens(&lexer); \
     tokens.fill(); \
-    *(Result) = tokens.getTokens();\
+    eelParser parser(&tokens); \
+    auto tree = parser.program(); \
+    SymbolTable table; \
+    ScopeVisitor scope_visitor(&table); \
+    scope_visitor.visitProgram(tree); \
 
 
 TEST_CASE("scope bleed","[scope_analysis]") {
-    ANTLRInputStream input("setup{u8 x = 2;} loop{f32 x = 2.2;}");
-    eelLexer lexer(&input);
-    CommonTokenStream tokens(&lexer);
-    tokens.fill();
-    eelParser parser(&tokens);
-    auto tree = parser.program();
-    SymbolTable table;
-    ScopeVisitor scope_visitor(&table);
-    scope_visitor.visitProgram(tree);
+    SCOPE_ANALYSIS("setup{u8 x = 2;} loop{f32 x = 2.2;}");
     REQUIRE(table.get_scope_count() == 3);
     auto x1 = table.get_scope(1)->find("x");
     auto x2 = table.get_scope(2)->find("x");
@@ -36,15 +32,7 @@ TEST_CASE("scope bleed","[scope_analysis]") {
 }
 
 TEST_CASE("scope overshadowing","[scope_analysis]") {
-    ANTLRInputStream input("setup{u8 x = 2; if(true) { u16 x = 4; } }");
-    eelLexer lexer(&input);
-    CommonTokenStream tokens(&lexer);
-    tokens.fill();
-    eelParser parser(&tokens);
-    auto tree = parser.program();
-    SymbolTable table;
-    ScopeVisitor scope_visitor(&table);
-    scope_visitor.visitProgram(tree);
+    SCOPE_ANALYSIS("setup{u8 x = 2; if(true) { u16 x = 4; } }")
     REQUIRE(table.get_scope_count() == 3);
     auto x1 = table.get_scope(1)->find("x");
     auto x2 = table.get_scope(2)->find("x");
@@ -54,15 +42,7 @@ TEST_CASE("scope overshadowing","[scope_analysis]") {
 }
 
 TEST_CASE("predicate less events","[scope_analysis]") {
-    ANTLRInputStream input("event x;");
-    eelLexer lexer(&input);
-    CommonTokenStream tokens(&lexer);
-    tokens.fill();
-    eelParser parser(&tokens);
-    auto tree = parser.program();
-    SymbolTable table;
-    ScopeVisitor scope_visitor(&table);
-    scope_visitor.visitProgram(tree);
+    SCOPE_ANALYSIS("event x;")
     REQUIRE(table.get_scope_count() == 1);
     auto x1 = table.get_scope(0)->find("x");
     REQUIRE(x1->kind == Symbol_::Kind::Event);
@@ -71,17 +51,9 @@ TEST_CASE("predicate less events","[scope_analysis]") {
 }
 
 // Will always fail currently since there is no way to give an event signature a predicate after declaration
-TEST_CASE("Event signature","[scope_analysis]") {
-    ANTLRInputStream input("event x; event x {return true;}");
-    eelLexer lexer(&input);
-    CommonTokenStream tokens(&lexer);
-    tokens.fill();
-    eelParser parser(&tokens);
-    auto tree = parser.program();
-    SymbolTable table;
-    ScopeVisitor scope_visitor(&table);
-    scope_visitor.visitProgram(tree);
-    REQUIRE(table.get_scope_count() == 1);
+TEST_CASE("deferred event declaration","[scope_analysis]") {
+    SCOPE_ANALYSIS("on x {} event x {return true;}")
+    REQUIRE(table.get_scope_count() == 3);
     auto x1 = table.get_scope(0)->find("x");
     REQUIRE(x1->kind == Symbol_::Kind::Event);
     REQUIRE(x1->value.event->has_predicate == true);
@@ -89,15 +61,7 @@ TEST_CASE("Event signature","[scope_analysis]") {
 }
 
 TEST_CASE("Setup/Loop void function", "[scope_analysis]") {
-    ANTLRInputStream input("setup {} loop{}");
-    eelLexer lexer(&input);
-    CommonTokenStream tokens(&lexer);
-    tokens.fill();
-    eelParser parser(&tokens);
-    auto tree = parser.program();
-    SymbolTable table;
-    ScopeVisitor scope_visitor(&table);
-    scope_visitor.visitProgram(tree);
+    SCOPE_ANALYSIS("setup{} loop{}")
     REQUIRE(table.get_scope_count() == 3);
     auto setup = table.get_scope(0)->find("setup");
     auto loop = table.get_scope(0)->find("loop");

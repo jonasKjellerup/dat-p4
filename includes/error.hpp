@@ -13,6 +13,7 @@ public:
     enum Kind {
         None,
         TypeMisMatch,
+        InvalidReturnType,
         ExpectedVariable,
         UndefinedType,
     };

@@ -244,14 +244,17 @@ Symbol Scope_::declare_event(const std::string& name, symbols::Function* functio
             // TODO throw error
             return {};
         }
-        // Only throw an error if we don't have a predicate.
-        // Otherwise, we cannot define an event signature
-        // is_complete is redundant since it is always set when an event is declared.
+
         if (symbol->value.event->is_complete) {
             // TODO throw error
             return {};
         }
-        // Dead code since an error will always be thrown before reaching here
+
+        if(function != nullptr) {
+            symbol->value.event->predicate = function;
+            symbol->value.event->has_predicate = true;
+        }
+
         symbol->value.event->is_complete = true;
     } else {
         auto& symbol_ref = create_event_symbol(this->context, name);

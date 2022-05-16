@@ -68,6 +68,13 @@ public:
      * */
     antlrcpp::Any visitProgram (eelParser::ProgramContext* ctx) override;
 
+
+    /*
+     * Top level Declarations
+     */
+    antlrcpp::Any visitLoopDecl(eelParser::LoopDeclContext* ctx) override;
+    antlrcpp::Any visitSetupDecl(eelParser::SetupDeclContext* ctx) override;
+
     /*
      * Variable declarations
      * */

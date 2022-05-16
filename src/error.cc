@@ -21,6 +21,9 @@ void Error::print() {
         case Error::TypeMisMatch:
             ::print(this,"Type mismatch expected: ");
             break;
+        case Error::InvalidReturnType:
+            ::print(this,"Invalid return type expected: ");
+            break;
         case Error::UndefinedType:
             ::print(this,"Undefined type");
             break;
