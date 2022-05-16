@@ -59,6 +59,7 @@ public:
     Scope previous_scope;
     size_t scope_index;
     Type expected_type;
+    symbols::Function* current_function;
     std::vector<Error> errors;
     explicit TypeVisitor(SymbolTable* _table);
 
@@ -80,9 +81,10 @@ public:
     antlrcpp::Any visitTypedIdentifier (eelParser::TypedIdentifierContext* ctx) override;
 
     /*
-     *  Other Declarations
+     *  Event Declarations
      * */
     antlrcpp::Any visitOnDecl (eelParser::OnDeclContext* ctx) override;
+    antlrcpp::Any visitEventDecl(eelParser::EventDeclContext* ctx) override;
 
     /*
      * Literal Expressions
@@ -144,6 +146,7 @@ public:
     antlrcpp::Any visitSetPinNumberStmt (eelParser::SetPinNumberStmtContext* ctx) override;
     antlrcpp::Any visitStmtBlock (eelParser::StmtBlockContext* ctx) override;
     antlrcpp::Any visitAwaitStmt (eelParser::AwaitStmtContext* ctx) override;
+    antlrcpp::Any visitReturnStmt(eelParser::ReturnStmtContext* ctx) override;
 
     /*
      * Other

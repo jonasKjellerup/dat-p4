@@ -92,20 +92,3 @@ TEST_CASE("Comments", "[Lexer]" ){
     vector<size_t> expected = {};
     compareTokens(&source, &expected);
 }
-
-TEST_CASE("T","T") {
-    ANTLRInputStream input("event x{return true;} loop{if(2 == 3){u8 t = 0; t += 5;}} on y {await x;}");
-    eelLexer lexer(&input);
-    CommonTokenStream tokens(&lexer);
-    tokens.fill();
-    eelParser parser(&tokens);
-    auto tree = parser.program();
-    SymbolTable table;
-    ScopeVisitor scope_visitor(&table);
-    scope_visitor.visitProgram(tree);
-    TypeVisitor type_visitor(&table);
-    type_visitor.visitProgram(tree);
-    for (auto error : type_visitor.errors){
-        error.print();
-    }
-}

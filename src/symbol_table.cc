@@ -185,38 +185,6 @@ static Symbol_& create_function_symbol(SymbolTable* context, const std::string& 
     return symbol;
 }
 
-Symbol Scope_::declare_event(const std::string& name) {
-    auto root = this->context->root_scope;
-    auto symbol = root->find(name);
-
-    // If a symbol already exists
-    if (!symbol.is_nullptr()) {
-        if (symbol->kind != Symbol_::Kind::Event) {
-            // TODO throw error
-            return {};
-        }
-
-        if (symbol->value.event->is_complete) {
-            // TODO throw error
-            return {};
-        }
-
-        symbol->value.event->is_complete = true;
-    } else {
-        auto& symbol_ref = create_event_symbol(this->context, name);
-        symbol = Symbol(symbol_ref.id, this->context);
-        root->symbol_map.insert(std::make_pair(name, symbol->id));
-    }
-    auto& event = symbol->value.event;
-
-
-    event->has_predicate = false;
-    event->is_awaited = false;
-    event->is_complete = true;
-
-    return symbol;
-}
-
 Symbol Scope_::declare_func(const std::string& name, Symbol return_type) {
     auto root = this->context->root_scope;
     auto symbol = root->find(name);
@@ -236,11 +204,35 @@ Symbol Scope_::declare_func(const std::string& name, Symbol return_type) {
     }
     auto& function = symbol->value.function;
     function->return_type = return_type;
-    function->has_return_type = true;
+    function->has_return_type = !return_type.is_nullptr();
     function->parameters = std::vector<Symbol>();
     return symbol;
 }
 
+Symbol Scope_::declare_event(const std::string& name) {
+    auto root = this->context->root_scope;
+    auto symbol = root->find(name);
+
+    // If a symbol already exists
+    if (!symbol.is_nullptr()) {
+        if (symbol->kind != Symbol_::Kind::Event) {
+            // TODO throw error
+            return {};
+        }
+    } else {
+        auto& symbol_ref = create_event_symbol(this->context, name);
+        symbol = Symbol(symbol_ref.id, this->context);
+        root->symbol_map.insert(std::make_pair(name, symbol->id));
+    }
+    auto& event = symbol->value.event;
+
+
+    event->has_predicate = false;
+    event->is_awaited = false;
+    event->is_complete = true;
+
+    return symbol;
+}
 
 Symbol Scope_::declare_event(const std::string& name, symbols::Function* function) {
     auto root = this->context->root_scope;
@@ -252,12 +244,14 @@ Symbol Scope_::declare_event(const std::string& name, symbols::Function* functio
             // TODO throw error
             return {};
         }
-
+        // Only throw an error if we don't have a predicate.
+        // Otherwise, we cannot define an event signature
+        // is_complete is redundant since it is always set when an event is declared.
         if (symbol->value.event->is_complete) {
             // TODO throw error
             return {};
         }
-
+        // Dead code since an error will always be thrown before reaching here
         symbol->value.event->is_complete = true;
     } else {
         auto& symbol_ref = create_event_symbol(this->context, name);
@@ -372,4 +366,8 @@ void SymbolTable::try_resolve_unresolved() {
                     [this](const UnresolvedSymbol& symbol) { return try_resolve(symbol, this); }),
             this->unresolved_symbols.end()
     );
+}
+
+size_t SymbolTable::get_scope_count() {
+    return this->scopes.size();
 }

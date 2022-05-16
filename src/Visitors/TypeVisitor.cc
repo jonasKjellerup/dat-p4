@@ -320,8 +320,22 @@ antlrcpp::Any TypeVisitor::visitTypedIdentifier(eelParser::TypedIdentifierContex
 
 
 /*
- *  Other Declarations
+ *  Event Declarations
  * */
+
+antlrcpp::Any TypeVisitor::visitEventDecl(eelParser::EventDeclContext* ctx) {
+    auto event = current_scope->find(ctx->Identifier()->getText());
+    if(!event.is_nullptr()){
+        if(event->kind != Symbol_::Kind::Event){
+            // TODO THROW ERROR
+        } else {
+            this->current_function = event->value.function;
+            visitChildren(ctx);
+            this->current_function = nullptr;
+        }
+    }
+    return Type();
+}
 antlrcpp::Any TypeVisitor::visitOnDecl(eelParser::OnDeclContext* ctx) {
     auto fqn = current_scope->find(ctx->fqn()->getText());
 
@@ -662,6 +676,20 @@ antlrcpp::Any TypeVisitor::visitAwaitStmt(eelParser::AwaitStmtContext* ctx) {
     return expr;
 }
 
+antlrcpp::Any TypeVisitor::visitReturnStmt(eelParser::ReturnStmtContext* ctx) {
+    auto expr = any_cast<Type>(visit(ctx->expr()));
+    if(!this->current_function->has_return_type){
+        auto error = new_error(Error::Kind::TypeMisMatch, expr.token, ctx, "none");
+        this->errors.push_back(error);
+    } else {
+        auto return_type = Type(this->current_function->return_type, nullptr);
+        if(!expr.equals(&return_type)){
+            auto error = new_error(Error::Kind::TypeMisMatch, expr.token, ctx, return_type.to_string());
+            this->errors.push_back(error);
+        }
+    }
+    return expr;
+}
 
 /*
  * Other

@@ -105,5 +105,4 @@ public:
      * Statements
      * */
     antlrcpp::Any visitStmtBlock (eelParser::StmtBlockContext* ctx) override;
-    antlrcpp::Any visitAwaitStmt(eelParser::AwaitStmtContext* ctx) override;
 };

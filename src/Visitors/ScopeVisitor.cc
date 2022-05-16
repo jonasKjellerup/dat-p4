@@ -16,16 +16,14 @@ antlrcpp::Any ScopeVisitor::visitProgram(eelParser::ProgramContext* ctx) {
  * Top level declarations
  * */
 antlrcpp::Any ScopeVisitor::visitLoopDecl(eelParser::LoopDeclContext* ctx) {
-    Symbol type = {0, nullptr};
-    Symbol func = current_scope->declare_func("loop", type); // has no return type
+    Symbol func = current_scope->declare_func("loop", {}); // has no return type
     auto scope = any_cast<Scope>(visit(ctx->stmtBlock()));
     func->value.function->scope = scope;
     return {};
 }
 
 antlrcpp::Any ScopeVisitor::visitSetupDecl(eelParser::SetupDeclContext* ctx) {
-    Symbol type = {0, nullptr};
-    Symbol func = current_scope->declare_func("setup", type); // has no return type
+    Symbol func = current_scope->declare_func("setup", {}); // has no return type
     auto scope = any_cast<Scope>(visit(ctx->stmtBlock()));
     func->value.function->scope = scope;
     return {};
@@ -257,13 +255,4 @@ antlrcpp::Any ScopeVisitor::visitStmtBlock(eelParser::StmtBlockContext* ctx) {
     current_scope = previous_scope;
     previous_scope = _previous_scope;
     return result;
-}
-
-antlrcpp::Any ScopeVisitor::visitAwaitStmt(eelParser::AwaitStmtContext* ctx) {
-    if(this->current_event != nullptr){
-        this->current_event->is_awaited = true;
-    } else {
-        // TODO Throw error
-    }
-    return visitChildren(ctx);
 }
