@@ -12,12 +12,12 @@ AsyncAnalysisVisitor::AsyncAnalysisVisitor(SymbolTable& table) : table(table) {}
 static void mark_async(Symbol symbol);
 
 static void set_ctx(AsyncAnalysisVisitor* visitor, Symbol symbol) {
-    visitor->context_kind = AsyncAnalysisVisitor::Context::Symbol;
+    visitor->context_kind = AsyncAnalysisVisitor::Context::Kind::Symbol;
     visitor->context.symbol = symbol;
 }
 
 static void set_ctx(AsyncAnalysisVisitor* visitor, symbols::Function* event_handle) {
-    visitor->context_kind = AsyncAnalysisVisitor::Context::EventHandle;
+    visitor->context_kind = AsyncAnalysisVisitor::Context::Kind::EventHandle;
     visitor->context.event_handle = event_handle;
 }
 
@@ -60,16 +60,15 @@ std::any AsyncAnalysisVisitor::visitStmtBlock(eelParser::StmtBlockContext* ctx) 
 
 std::any AsyncAnalysisVisitor::visitAwaitStmt(eelParser::AwaitStmtContext*) {
     switch (context_kind) {
-        case Context::Symbol:
+        case Context::Kind::Symbol:
             mark_async(context.symbol);
             break;
-        case Context::EventHandle:
+        case Context::Kind::EventHandle:
             context.event_handle->is_async = true;
             break;
-        case Context::Block:
-            context.block->is_async = true;
+        case Context::Kind::Block:
             break;
-        case Context::None:
+        case Context::Kind::None:
             throw InternalError(InternalError::Codegen, "await stmt in invalid context: None.");
         default:
             throw InternalError(InternalError::Codegen, "Invalid context type encountered.");

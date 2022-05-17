@@ -14,7 +14,7 @@ namespace eel::visitors {
 
         union Context {
             using Symbol_t = Symbol;
-            enum Kind {
+            enum struct Kind {
                 None,
                 Symbol,
                 EventHandle,
@@ -28,7 +28,7 @@ namespace eel::visitors {
         };
 
         SymbolTable& table;
-        Context::Kind context_kind = Context::None;
+        Context::Kind context_kind = Context::Kind::None;
         Context context {};
 
         explicit AsyncAnalysisVisitor(SymbolTable& table);

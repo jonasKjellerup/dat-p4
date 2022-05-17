@@ -139,7 +139,7 @@ void Scope_::declare_const(Symbol& type, const std::string& name, ConstExpr expr
 }
 
 void Scope_::declare_type(symbols::Type* type) {
-    auto& name = type->type_target_name();
+    auto& name = type->type_source_name(); // Changed since find would be unable to find digital or analog variable declarations.
     if (this->symbol_map.contains(name)) {
         // TODO throw exception
     }
@@ -197,13 +197,6 @@ Symbol Scope_::declare_event(const std::string& name) {
             // TODO throw error
             return {};
         }
-
-        if (symbol->value.event->is_complete) {
-            // TODO throw error
-            return {};
-        }
-
-        symbol->value.event->is_complete = true;
     } else {
         auto& symbol_ref = create_event_symbol(this->context, name);
         symbol = Symbol(symbol_ref.id, this->context);
@@ -267,7 +260,6 @@ Symbol Scope_::declare_func(const std::string& name, Symbol return_type) {
     return symbol;
 }
 
-
 Symbol Scope_::declare_event(const std::string& name, symbols::Function* function) {
     auto root = this->context->root_scope;
     auto symbol = root->find(name);
@@ -282,6 +274,11 @@ Symbol Scope_::declare_event(const std::string& name, symbols::Function* functio
         if (symbol->value.event->is_complete) {
             // TODO throw error
             return {};
+        }
+
+        if(function != nullptr) {
+            symbol->value.event->predicate = function;
+            symbol->value.event->has_predicate = true;
         }
 
         symbol->value.event->is_complete = true;
@@ -398,4 +395,8 @@ void SymbolTable::try_resolve_unresolved() {
                     [this](const UnresolvedSymbol& symbol) { return try_resolve(symbol, this); }),
             this->unresolved_symbols.end()
     );
+}
+
+size_t SymbolTable::get_scope_count() {
+    return this->scopes.size();
 }

@@ -4,8 +4,12 @@
 #include <string>
 #include <symbol_table.hpp>
 
-namespace eel::symbols {
+namespace eel {
     struct Sequence;
+}
+
+namespace eel::symbols {
+
     struct Function {
     public:
         Scope scope;

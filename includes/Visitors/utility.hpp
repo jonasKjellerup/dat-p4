@@ -19,4 +19,7 @@ namespace eel::visitors {
     /// \brief Get the source text location of a given token
     SourcePos get_source_location(antlr4::Token* token);
 
+    extern const char* builtin_setup_name;
+    extern const char* builtin_loop_name;
+
 }

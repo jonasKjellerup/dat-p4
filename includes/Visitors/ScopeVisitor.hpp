@@ -4,9 +4,14 @@
 #include "symbol_table.hpp"
 #include "symbols/type.hpp"
 #include "symbols/variable.hpp"
+#include "symbols/constant.hpp"
 #include "symbols/event.hpp"
+#include "error.hpp"
+#include "sequence.hpp"
 
 using namespace eel;
+using namespace antlr4;
+
 struct TypedIdentifier {
     Symbol type;
     std::string identifier;
@@ -20,237 +25,92 @@ public:
      * */
     SymbolTable* table;
     Scope current_scope;
-    explicit ScopeVisitor(SymbolTable* _table) {
-        table = _table;
-        symbols::Primitive::register_primitives(table->root_scope);
-        current_scope = table->root_scope;
-    }
+    symbols::Event* current_event;
+    Sequence* active_sequence;
+    std::vector<Error> errors;
+
+    explicit ScopeVisitor(SymbolTable* _table);
 
     /*
      * This rule is here to act as a starting point for the traversal of the parse tree.
      * */
-    antlrcpp::Any visitProgram (eelParser::ProgramContext* ctx) override {
-        return visitChildren(ctx);
-    }
-
-    /*
-     * Declaration Section
-     * */
-
+    antlrcpp::Any visitProgram (eelParser::ProgramContext* ctx) override;
 
     /*
      * Top level declarations
      * */
-    std::any visitSetupDecl(eelParser::SetupDeclContext *ctx) override;
-    std::any visitLoopDecl(eelParser::LoopDeclContext *ctx) override;
-
-    antlrcpp::Any visitIncludeDirective (eelParser::IncludeDirectiveContext* ctx) override {
-        return visitChildren(ctx);
-    }
-    antlrcpp::Any visitTraitImplBlock (eelParser::TraitImplBlockContext* ctx) override {
-        return visitChildren(ctx);
-    }
-    antlrcpp::Any visitImplBlock (eelParser::ImplBlockContext* ctx) override {
-        return visitChildren(ctx);
-    }
+    antlrcpp::Any visitLoopDecl (eelParser::LoopDeclContext* ctx) override;
+    antlrcpp::Any visitSetupDecl(eelParser::SetupDeclContext* ctx) override;
+    antlrcpp::Any visitIncludeDirective (eelParser::IncludeDirectiveContext* ctx) override;
+    antlrcpp::Any visitTraitImplBlock (eelParser::TraitImplBlockContext* ctx) override;
+    antlrcpp::Any visitImplBlock (eelParser::ImplBlockContext* ctx) override;
 
     /*
      * Variable declarations
      * */
-    antlrcpp::Any visitVariableDecl (eelParser::VariableDeclContext* ctx) override {
-        auto res = any_cast<TypedIdentifier>(visit(ctx->typedIdentifier()));
-        current_scope->declare_var(res.type, res.identifier);
-        return {};
-    }
-    antlrcpp::Any visitConstDecl (eelParser::ConstDeclContext* ctx) override {
-        auto res = any_cast<TypedIdentifier>(visit(ctx->typedIdentifier()));
-        current_scope->declare_const(res.type, res.identifier, {});
-        return {};
-    }
-    antlrcpp::Any visitStaticDecl (eelParser::StaticDeclContext* ctx) override {
-        auto res = any_cast<TypedIdentifier>(visit(ctx->typedIdentifier()));
-        current_scope->declare_var(res.type, res.identifier, true);
-        return {};
-    }
-    antlrcpp::Any visitPinDecl (eelParser::PinDeclContext* ctx) override {
-        auto identifier = ctx->Identifier()->getText();
-        auto _type = ctx->PinType()->getText();
-        auto type = current_scope->find(_type);
-        if (type.is_nullptr()){
-            current_scope->defer_symbol(_type, Symbol_::Kind::Type);
-        }else if (type->kind != Symbol_::Kind::Type){
-            std::cout << "Symbol is not a type" << std::endl;
-        }
-        current_scope->declare_var(type, identifier);
-        return {};
-    }
-
-    antlrcpp::Any visitArrayDecl (eelParser::ArrayDeclContext* ctx) override {
-        auto res = any_cast<TypedIdentifier>(visit(ctx->typedIdentifier()));
-        return {};
-    }
-    antlrcpp::Any visitReferenceDecl (eelParser::ReferenceDeclContext* ctx) override {
-        return visitChildren(ctx);
-    }
-    antlrcpp::Any visitPointerDecl (eelParser::PointerDeclContext* ctx) override {
-        return visitChildren(ctx);
-    }
-
-    antlrcpp::Any visitTypedIdentifier (eelParser::TypedIdentifierContext* ctx) override {
-        auto identifier = ctx->Identifier()->getText();
-        auto _type = ctx->type()->getText();
-        auto type = current_scope->find(_type);
-        if (type.is_nullptr()){
-            current_scope->defer_symbol(_type, Symbol_::Kind::Type);
-        } else if (type->kind != Symbol_::Kind::Type){
-            std::cout << "Symbol is not a type" << std::endl;
-            // TODO: Throw error
-        }
-        return TypedIdentifier{ type, identifier};
-    }
+    antlrcpp::Any visitVariableDecl (eelParser::VariableDeclContext* ctx) override;
+    antlrcpp::Any visitConstDecl (eelParser::ConstDeclContext* ctx) override;
+    antlrcpp::Any visitStaticDecl (eelParser::StaticDeclContext* ctx) override;
+    antlrcpp::Any visitPinDecl (eelParser::PinDeclContext* ctx) override;
+    antlrcpp::Any visitArrayDecl (eelParser::ArrayDeclContext* ctx) override;
+    antlrcpp::Any visitReferenceDecl (eelParser::ReferenceDeclContext* ctx) override;
+    antlrcpp::Any visitPointerDecl (eelParser::PointerDeclContext* ctx) override;
+    antlrcpp::Any visitTypedIdentifier (eelParser::TypedIdentifierContext* ctx) override;
 
     /*
      * Type declarations
      * */
-    antlrcpp::Any visitStructDecl (eelParser::StructDeclContext* ctx) override {
-        return visitChildren(ctx);
-    }
-    antlrcpp::Any visitUnionDecl (eelParser::UnionDeclContext* ctx) override {
-        return visitChildren(ctx);
-    }
-    antlrcpp::Any visitUntaggedUnionDecl (eelParser::UntaggedUnionDeclContext* ctx) override {
-        return visitChildren(ctx);
-    }
-    antlrcpp::Any visitEnumDecl (eelParser::EnumDeclContext* ctx) override {
-        return visitChildren(ctx);
-    }
+    antlrcpp::Any visitStructDecl (eelParser::StructDeclContext* ctx) override;
+    antlrcpp::Any visitUnionDecl (eelParser::UnionDeclContext* ctx) override;
+    antlrcpp::Any visitUntaggedUnionDecl (eelParser::UntaggedUnionDeclContext* ctx) override;
+    antlrcpp::Any visitEnumDecl (eelParser::EnumDeclContext* ctx) override;
     antlrcpp::Any visitEventDecl (eelParser::EventDeclContext* ctx) override;
-
-    antlrcpp::Any visitIntervalDecl (eelParser::IntervalDeclContext* ctx) override {
-        return visitChildren(ctx);
-    }
-    antlrcpp::Any visitOnDecl (eelParser::OnDeclContext* ctx) override {
-        current_scope->declare_event_handle(ctx->fqn()->getText(), visitors::get_source_location(ctx->start));
-        return visitChildren(ctx);
-    }
-    antlrcpp::Any visitTraitDecl (eelParser::TraitDeclContext* ctx) override {
-        return visitChildren(ctx);
-    }
+    antlrcpp::Any visitIntervalDecl (eelParser::IntervalDeclContext* ctx) override;
+    antlrcpp::Any visitOnDecl (eelParser::OnDeclContext* ctx) override;
+    antlrcpp::Any visitTraitDecl (eelParser::TraitDeclContext* ctx) override;
 
     /*
      * Function declarations
      * */
-    antlrcpp::Any visitFnDecl (eelParser::FnDeclContext* ctx) override {
-        return visitChildren(ctx);
-    }
-    antlrcpp::Any visitParamList (eelParser::ParamListContext* ctx) override {
-        return visitChildren(ctx);
-    }
-    antlrcpp::Any visitFnParam (eelParser::FnParamContext* ctx) override {
-        return visitChildren(ctx);
-    }
+    antlrcpp::Any visitFnDecl (eelParser::FnDeclContext* ctx) override;
+    antlrcpp::Any visitParamList (eelParser::ParamListContext* ctx) override;
+    antlrcpp::Any visitFnParam (eelParser::FnParamContext* ctx) override;
 
     /*
      * Associated Function declarations
      * */
-    antlrcpp::Any visitInstanceAssociatedFn (eelParser::InstanceAssociatedFnContext* ctx) override {
-        return visitChildren(ctx);
-    }
-    antlrcpp::Any visitPartialInstanceAssociatedFn (eelParser::PartialInstanceAssociatedFnContext* ctx) override {
-        return visitChildren(ctx);
-    }
-    antlrcpp::Any visitTypeAssociatedFn (eelParser::TypeAssociatedFnContext* ctx) override {
-        return visitChildren(ctx);
-    }
-    antlrcpp::Any visitPartialTypeAssociatedFn (eelParser::PartialTypeAssociatedFnContext* ctx) override {
-        return visitChildren(ctx);
-    }
-    antlrcpp::Any visitInstanceAssocParamList (eelParser::InstanceAssocParamListContext* ctx) override {
-        return visitChildren(ctx);
-    }
+    antlrcpp::Any visitInstanceAssociatedFn (eelParser::InstanceAssociatedFnContext* ctx) override;
+    antlrcpp::Any visitPartialInstanceAssociatedFn (eelParser::PartialInstanceAssociatedFnContext* ctx) override;
+    antlrcpp::Any visitTypeAssociatedFn (eelParser::TypeAssociatedFnContext* ctx) override;
+    antlrcpp::Any visitPartialTypeAssociatedFn (eelParser::PartialTypeAssociatedFnContext* ctx) override;
+    antlrcpp::Any visitInstanceAssocParamList (eelParser::InstanceAssocParamListContext* ctx) override;
 
     /*
      * Namespace declaration
      * */
-    antlrcpp::Any visitNamespaceDecl (eelParser::NamespaceDeclContext* ctx) override {
-        return visitChildren(ctx);
-    }
-
-
-    /*
-     * Usage Section
-     * */
+    antlrcpp::Any visitNamespaceDecl (eelParser::NamespaceDeclContext* ctx) override;
 
     /*
      * Access Expressions
      * */
-    antlrcpp::Any visitIdentifier(eelParser::IdentifierContext *ctx) override;
 
-    antlrcpp::Any visitFqnExpr (eelParser::FqnExprContext* ctx) override {
-        return visitChildren(ctx);
-    }
-    antlrcpp::Any visitStructExpr (eelParser::StructExprContext* ctx) override {
-        return visitChildren(ctx);
-    }
-    antlrcpp::Any visitArrayExpr (eelParser::ArrayExprContext* ctx) override {
-        return visitChildren(ctx);
-    }
-    antlrcpp::Any visitPointerExpr (eelParser::PointerExprContext* ctx) override {
-        return visitChildren(ctx);
-    }
-    antlrcpp::Any visitReferenceExpr (eelParser::ReferenceExprContext* ctx) override {
-        return visitChildren(ctx);
-    }
-    antlrcpp::Any visitReadPinExpr (eelParser::ReadPinExprContext* ctx) override {
-        return visitChildren(ctx);
-    }
+    antlrcpp::Any visitFqnExpr (eelParser::FqnExprContext* ctx) override;
+    antlrcpp::Any visitStructExpr (eelParser::StructExprContext* ctx) override;
+    antlrcpp::Any visitArrayExpr (eelParser::ArrayExprContext* ctx) override;
+    antlrcpp::Any visitPointerExpr (eelParser::PointerExprContext* ctx) override;
+    antlrcpp::Any visitReferenceExpr (eelParser::ReferenceExprContext* ctx) override;
+    antlrcpp::Any visitReadPinExpr (eelParser::ReadPinExprContext* ctx) override;
 
     /*
      * Function Expressions
      * */
-
-    antlrcpp::Any visitFnCallExpr (eelParser::FnCallExprContext* ctx) override {
-        return visitChildren(ctx);
-    }
-    antlrcpp::Any visitInstanceAssociatedFnCallExpr (eelParser::InstanceAssociatedFnCallExprContext* ctx) override {
-        return visitChildren(ctx);
-    }
-    antlrcpp::Any visitExprList (eelParser::ExprListContext* ctx) override {
-        return visitChildren(ctx);
-    }
+    antlrcpp::Any visitFnCallExpr (eelParser::FnCallExprContext* ctx) override;
+    antlrcpp::Any visitInstanceAssociatedFnCallExpr (eelParser::InstanceAssociatedFnCallExprContext* ctx) override;
+    antlrcpp::Any visitExprList (eelParser::ExprListContext* ctx) override;
 
     /*
      * Statements
      * */
-    antlrcpp::Any visitStmtBlock (eelParser::StmtBlockContext* ctx) override {
-        auto outer_scope = current_scope;
-        auto inner_scope = table->derive_scope(outer_scope);
-        current_scope = inner_scope;
-        visitChildren(ctx);
-        current_scope = outer_scope;
-        return inner_scope;
-    }
-    antlrcpp::Any visitForEachStmt (eelParser::ForEachStmtContext* ctx) override {
-        auto array_symbol = current_scope->find(ctx->x3->getText());
-        if(array_symbol->kind != Symbol_::Kind::Variable){
-            //TODO: Throw error
-        }
-        symbols::Variable* array = array_symbol->value.variable;
-        auto type = array->type;
-        if(type->kind != Symbol_::Kind::Type){
-            //TODO: Throw error
-        } else {
-            current_scope->declare_var(type, ctx->x1->getText());
-        }
-        if(ctx->x2 != nullptr){
-            // TODO: Do constant analysis to get the array size and choose a appropriate size to increase performance.
-            auto _type = current_scope->find("u64");
-            if(_type->kind != Symbol_::Kind::Type){
-                // TODO: Throw error
-            } else{
-                current_scope->declare_var(_type, ctx->x2->getText());
-            }
-        }
-        return {};
-    }
+    std::any visitAwaitStmt(eelParser::AwaitStmtContext *ctx) override;
+    antlrcpp::Any visitStmtBlock (eelParser::StmtBlockContext* ctx) override;
 };

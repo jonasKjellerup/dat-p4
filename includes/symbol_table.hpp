@@ -225,6 +225,7 @@ namespace eel {
 
         Scope get_scope(Scope::Id id);
         Scope::Raw get_scope_raw(Scope::Id id);
+        size_t get_scope_count();
 
         /// \brief Attempts to resolve unresolved symbols.
         /// All symbols that are successfully resolved will

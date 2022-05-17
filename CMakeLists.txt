@@ -36,9 +36,10 @@ add_library(compiler
         src/error.cc
         src/symbols/event.cpp
         src/visitors/codegen.cc
-        src/visitors/scope_analysis.cc
         src/visitors/async_analysis.cc
-        src/visitors/utility.cc)
+        src/visitors/utility.cc
+        src/Visitors/ScopeVisitor.cc
+        src/Visitors/TypeVisitor.cc)
 target_link_libraries(compiler fmt::fmt)
 target_link_libraries(compiler antlr4_static)
 target_link_libraries(compiler Threads::Threads)
@@ -48,7 +49,7 @@ add_executable(compiler_tests
         tests/test_symbol_table.cc
         tests/test_runtime_events.cc
         tests/test_antlr.cc
-        tests/test_symbol_table.cc)
+        tests/test_symbol_table.cc tests/test_scope_visitor.cc tests/test_type_visitor.cc)
 target_link_libraries(compiler_tests compiler)
 
 add_executable(compiler_cli src/cli.cc)

@@ -221,9 +221,8 @@ any CodegenVisitor::visitEventDecl(eelParser::EventDeclContext* ctx) {
         throw InternalError(InternalError::Codegen, "Invalid symbol. Expected event.");
 
     auto event = symbol->value.event;
-    if (!event->is_complete) // TODO this should have been reported earlier
-        // TODO report error
-        return {};
+    if (!event->is_complete)
+        throw InternalError(InternalError::Codegen, "Incomplete event encountered during codegen.");
 
     // If the event is never used (no `awaits` or `on` blocks)
     // don't bother generating the event.
@@ -247,9 +246,9 @@ void generate_event(FILE* stream, Symbol event) {
     auto& handles = event->value.event->get_handles();
 
     for (auto& handle: handles) {
-        fmt::print(stream, "struct {}", handle.type_id);
+        fmt::print(stream, "struct {}", handle.second.type_id);
         // TODO add check for async function
-        generate_function_type_body(stream, handle);
+        generate_function_type_body(stream, handle.second);
     }
 
     auto predicate_type = predicateless_type;
@@ -260,7 +259,7 @@ void generate_event(FILE* stream, Symbol event) {
     //
     fmt::print(stream, "Event<{}", predicate_type);
     for (auto& handle: handles) {
-        fmt::print(stream, ", {}", handle.type_id);
+        fmt::print(stream, ", {}", handle.second.type_id);
     }
 
     fmt::print(stream, "> {};\n", event->value.event->id);
@@ -277,6 +276,38 @@ void generate_sync_functor_type(
     invoke_generator();
     fmt::print(stream, " }} }};");
 }
+
+void generate_async_functor_type(
+        FILE* stream,
+        const symbols::Function& function,
+        const std::function<void()>& invoke_generator
+) {
+    fmt::print(stream,
+        "struct {} : AsyncFunction {{"
+        "struct State {{",
+        function.type_id);
+
+    fmt::print(stream, "}};" // End of State struct decl
+                       "static int begin_invoke(State& state"); // Start of begin_invoke param list
+
+    for (auto param: function.parameters) {
+        auto var = param->value.variable;
+        fmt::print(stream, ", {} {}",
+                   var->type->value.type->type_target_name(),
+                   generate_variable_id(param));
+    }
+
+    fmt::print(stream, ") {{"); // End of begin_invoke param list + start of body
+
+    // TODO generate being_invoke body
+
+    fmt::print(stream, "}}\n static int step(State& state) {{ ");
+
+    // TODO generate step body
+
+    fmt::print(stream, "}} }};"); // End of step body and functor struct
+
+};
 
 void generate_function_type_body(FILE* stream, const symbols::Function& function) {
     fmt::print(stream, "{{ static void invoke () {{ {} }} }};", "INSERT INVOKE body here");
