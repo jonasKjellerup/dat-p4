@@ -1,11 +1,15 @@
 #pragma once
 
 #include <vector>
+#include <unordered_map>
 
 #include <symbols/function.hpp>
 #include <symbol_table.hpp>
+#include <Visitors/utility.hpp>
 
 namespace eel::symbols {
+
+    using eel::visitors::SourcePos;
 
     struct Event {
     public:
@@ -28,13 +32,15 @@ namespace eel::symbols {
 
         void compute_id(Symbol symbol);
 
-        void add_handle(Scope scope, SymbolTable* table);
+        void add_handle(Scope scope, SourcePos pos);
 
-        [[nodiscard]] const std::vector<Function>& get_handles() const;
+        Function& get_handle(SourcePos pos);
+
+        [[nodiscard]] const std::unordered_map<size_t, Function>& get_handles() const;
 
 
     private:
-        std::vector<Function> event_handles;
+        std::unordered_map<size_t , Function> event_handles;
     };
 
 }

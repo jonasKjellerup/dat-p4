@@ -12,6 +12,7 @@
 #include "symbols/constant.hpp"
 #include "symbols/event.hpp"
 #include "error.hpp"
+#include "Visitors/utility.hpp"
 
 using namespace eel;
 using namespace antlr4;
@@ -145,24 +146,9 @@ private:
         return false;
     }
 
-    static std::string get_context_source(ParserRuleContext* ctx) {
-        auto interval = misc::Interval(
-                ctx->getStart()->getStartIndex(),
-                ctx->getStop()->getStopIndex()
-        );
-        return ctx->start->getInputStream()->getText(interval);
-    }
-
-    static Error::Pos get_source_location(Token* token){
-        return {
-                token->getLine(),
-                token->getCharPositionInLine()
-        };
-    }
-
     void new_error(Error::Kind kind, Token* token, ParserRuleContext* ctx, std::string expected){
-        auto location = get_source_location(token);
-        auto source = get_context_source(ctx);
+        auto location = visitors::get_source_location(token);
+        auto source = visitors::get_source_text(ctx);
         auto offset = ctx->start->getCharPositionInLine();
         auto error = Error(
                 kind,

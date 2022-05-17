@@ -145,7 +145,7 @@ namespace eel {
 
         Symbol declare_event(const std::string& name);
         Symbol declare_event(const std::string& name, symbols::Function* function);
-        symbols::Event& declare_event_handle(const std::string& event_name);
+        symbols::Event& declare_event_handle(const std::string& event_name, Error::Pos pos);
 
         /// \brief Declares a function by the given name, with no return type.
         /// The function is always declared in the root scope

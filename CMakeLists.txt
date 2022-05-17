@@ -31,9 +31,14 @@ add_library(compiler
         ${ANTLR_Eel_CXX_OUTPUTS}
         src/parsing.cc
         src/symbol_table.cc
+        src/sequence.cc
         src/symbols/type.cc
         src/error.cc
-        src/symbols/event.cpp src/visitors/codegen.cc src/visitors/scope_analysis.cc)
+        src/symbols/event.cpp
+        src/visitors/codegen.cc
+        src/visitors/scope_analysis.cc
+        src/visitors/async_analysis.cc
+        src/visitors/utility.cc)
 target_link_libraries(compiler fmt::fmt)
 target_link_libraries(compiler antlr4_static)
 target_link_libraries(compiler Threads::Threads)

@@ -9,7 +9,7 @@ namespace eel::visitors {
     using namespace eel;
     using std::any;
 
-    struct CodegenVisitor : eel::eelBaseVisitor {
+    struct CodegenVisitor : eelBaseVisitor {
 
         SymbolTable& table;
         FILE* stream;

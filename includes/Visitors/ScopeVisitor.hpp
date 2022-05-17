@@ -130,7 +130,7 @@ public:
         return visitChildren(ctx);
     }
     antlrcpp::Any visitOnDecl (eelParser::OnDeclContext* ctx) override {
-        current_scope->declare_event_handle(ctx->fqn()->getText());
+        current_scope->declare_event_handle(ctx->fqn()->getText(), visitors::get_source_location(ctx->start));
         return visitChildren(ctx);
     }
     antlrcpp::Any visitTraitDecl (eelParser::TraitDeclContext* ctx) override {

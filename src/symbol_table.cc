@@ -300,7 +300,7 @@ Symbol Scope_::declare_event(const std::string& name, symbols::Function* functio
     return symbol;
 }
 
-symbols::Event& Scope_::declare_event_handle(const std::string& event_name) {
+symbols::Event& Scope_::declare_event_handle(const std::string& event_name, Error::Pos pos) {
     auto root = this->context->root_scope;
     auto event_symbol = root->find(event_name);
 
@@ -310,7 +310,7 @@ symbols::Event& Scope_::declare_event_handle(const std::string& event_name) {
         event_symbol->value.event->is_complete = false;
     }
 
-    event_symbol->value.event->add_handle(root, this->context);
+    event_symbol->value.event->add_handle(root, pos);
     return *event_symbol->value.event;
 }
 
