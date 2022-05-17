@@ -159,5 +159,4 @@ public:
      * Other
      */
     antlrcpp::Any visitConditionBlock (eelParser::ConditionBlockContext* ctx) override;
-
 };

@@ -1,9 +1,13 @@
 #pragma once
 #include <cstddef>
 #include <string>
+#include "antlr4-runtime.h"
+
+using namespace antlr4;
 
 struct Error {
 public:
+
     struct Pos {
         Pos();
         Pos(size_t l, size_t c);
@@ -14,12 +18,15 @@ public:
         None,
         TypeMisMatch,
         InvalidReturnType,
+        DuplicateEvent,
+        AlreadyDefined,
         ExpectedVariable,
         UndefinedType,
     };
     explicit Error();
     explicit Error(Error::Kind kind);
     explicit Error(Error::Kind kind, std::string source, std::string expected, Pos location, size_t offset);
+    explicit Error(Kind kind, Token* token, ParserRuleContext* ctx, const std::string& expected);
     std::string source;
     std::string expected;
     size_t offset;

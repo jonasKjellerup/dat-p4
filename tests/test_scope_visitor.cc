@@ -50,7 +50,6 @@ TEST_CASE("predicate less events","[scope_analysis]") {
     REQUIRE(x1->value.event->is_complete == true);
 }
 
-// Will always fail currently since there is no way to give an event signature a predicate after declaration
 TEST_CASE("deferred event declaration","[scope_analysis]") {
     SCOPE_ANALYSIS("on x {} event x {return true;}")
     REQUIRE(table.get_scope_count() == 3);
@@ -58,6 +57,12 @@ TEST_CASE("deferred event declaration","[scope_analysis]") {
     REQUIRE(x1->kind == Symbol_::Kind::Event);
     REQUIRE(x1->value.event->has_predicate == true);
     REQUIRE(x1->value.event->is_complete == true);
+}
+
+TEST_CASE("duplicate event", "[scope_analysis]"){
+    SCOPE_ANALYSIS("event x { return true; } event x { return true;  }")
+    REQUIRE(scope_visitor.errors.size() == 1);
+    REQUIRE(scope_visitor.errors.at(0).kind == Error::Kind::DuplicateEvent);
 }
 
 TEST_CASE("Setup/Loop void function", "[scope_analysis]") {

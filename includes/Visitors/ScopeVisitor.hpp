@@ -4,9 +4,13 @@
 #include "symbol_table.hpp"
 #include "symbols/type.hpp"
 #include "symbols/variable.hpp"
+#include "symbols/constant.hpp"
 #include "symbols/event.hpp"
+#include "error.hpp"
 
 using namespace eel;
+using namespace antlr4;
+
 struct TypedIdentifier {
     Symbol type;
     std::string identifier;
@@ -22,6 +26,7 @@ public:
     Scope current_scope;
     Scope previous_scope;
     symbols::Event* current_event;
+    std::vector<Error> errors;
 
     explicit ScopeVisitor(SymbolTable* _table);
 

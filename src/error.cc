@@ -55,6 +55,30 @@ Error::Error(Error::Kind _kind, std::string _source, std::string _expected, Pos 
     this->kind = _kind;
 }
 
+static Error::Pos get_source_location(Token* token){
+    return {
+            token->getLine(),
+            token->getCharPositionInLine()
+    };
+}
+
+static std::string get_context_source(ParserRuleContext* ctx) {
+    auto interval = misc::Interval(
+            ctx->getStart()->getStartIndex(),
+            ctx->getStop()->getStopIndex()
+    );
+    return ctx->start->getInputStream()->getText(interval);
+}
+
+Error::Error(Error::Kind kind, Token* token, ParserRuleContext* ctx, const std::string& expected){
+    this->location = get_source_location(token);
+    this->source = get_context_source(ctx);
+    this->offset = ctx->start->getCharPositionInLine();
+    this->kind = kind;
+    this->expected = expected;
+}
+
+
 void Error::set_pos(Error::Pos _location) {
     this->location = _location;
 }

@@ -137,7 +137,7 @@ void Scope_::declare_const(Symbol& type, const std::string& name, ConstExpr expr
 }
 
 void Scope_::declare_type(symbols::Type* type) {
-    auto& name = type->type_target_name();
+    auto& name = type->type_source_name(); // Changed since find would be unable to find digital or analog variable declarations.
     if (this->symbol_map.contains(name)) {
         // TODO throw exception
     }

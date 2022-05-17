@@ -32,46 +32,40 @@ std::string literal_str(TypeVisitor::Type::Kind value)  {
     }
     return res;
 }
+
 std::string symbol_str(Symbol symbol) {
+    switch (symbol->kind) {
+        case Symbol_::Kind::None:
+            return "none";
+            break;
+        case Symbol_::Kind::Variable:
+            return symbol->value.variable->type->name;
+            break;
+        case Symbol_::Kind::Constant:
+            return symbol->value.constant->type->name;
+            break;
+        case Symbol_::Kind::Function:
+            if(symbol->value.function->has_return_type)
+                return symbol->value.function->return_type->name;
+            return "none";
+            break;
+        case Symbol_::Kind::Type:
+            return symbol->value.type->type_source_name();
+            break;
+        default:
+            return "none";
+    }
     return symbol->value.type->type_source_name();
-}
-
-static Error::Pos get_source_location(Token* token){
-    return {
-            token->getLine(),
-            token->getCharPositionInLine()
-    };
-}
-
-static std::string get_context_source(ParserRuleContext* ctx) {
-    auto interval = misc::Interval(
-            ctx->getStart()->getStartIndex(),
-            ctx->getStop()->getStopIndex()
-    );
-    return ctx->start->getInputStream()->getText(interval);
-}
-
-Error new_error(Error::Kind kind, Token* token, ParserRuleContext* ctx, const std::string& expected){
-    auto location = get_source_location(token);
-    auto source = get_context_source(ctx);
-    auto offset = ctx->start->getCharPositionInLine();
-    return Error(
-            kind,
-            source,
-            expected,
-            location,
-            offset
-    );
 }
 
 Error binary_expr(TypeVisitor::Type* left, TypeVisitor::Type* right, TypeVisitor::Type* expected, ParserRuleContext* ctx){
     if(expected->is_null()){
         if(!left->equals(right)){
-            return new_error(Error::TypeMisMatch, right->token, ctx, left->to_string());
+            return Error(Error::TypeMisMatch, right->token, ctx, left->to_string());
         }
     } else {
         if(!left->equals(expected)){
-            return new_error(Error::TypeMisMatch, right->token, ctx, expected->to_string());
+            return Error(Error::TypeMisMatch, right->token, ctx, expected->to_string());
         }
     }
     left->token = ctx->start;
@@ -81,9 +75,9 @@ Error binary_expr(TypeVisitor::Type* left, TypeVisitor::Type* right, TypeVisitor
 Error logical_expr(TypeVisitor::Type* type, ParserRuleContext* ctx){
     auto boolean = TypeVisitor::Type(TypeVisitor::Type::Kind::Bool, nullptr);
     if(type->is_null()){
-        return new_error(Error::TypeMisMatch, type->token, ctx, boolean.to_string());
+        return Error(Error::TypeMisMatch, type->token, ctx, boolean.to_string());
     } else if(!type->equals(&boolean) ){
-        return new_error(Error::TypeMisMatch, type->token, ctx, boolean.to_string());
+        return Error(Error::TypeMisMatch, type->token, ctx, boolean.to_string());
     }
     type->token = ctx->start;
     return Error();
@@ -91,12 +85,12 @@ Error logical_expr(TypeVisitor::Type* type, ParserRuleContext* ctx){
 
 Error binary_assign_expr(TypeVisitor::Type* var, TypeVisitor::Type* expr, ParserRuleContext* ctx){
     if (var->is_null() || var->is_literal) {
-        return new_error(Error::ExpectedVariable, var->token, ctx, "");
+        return Error(Error::ExpectedVariable, var->token, ctx, "");
     } else if (var->symbol()->kind != Symbol_::Kind::Variable) {
-        return new_error(Error::ExpectedVariable, var->token, ctx, "");
+        return Error(Error::ExpectedVariable, var->token, ctx, "");
     } else {
         if (!var->equals(expr)) {
-            return new_error(Error::ExpectedVariable, expr->token, ctx, "");
+            return Error(Error::TypeMisMatch, expr->token, ctx, var->to_string());
         }
     }
     var->token = ctx->start;
@@ -104,18 +98,18 @@ Error binary_assign_expr(TypeVisitor::Type* var, TypeVisitor::Type* expr, Parser
 }
 
 Error pin_stmt(TypeVisitor::Type* pin, TypeVisitor::Type* expr, ParserRuleContext* ctx, SymbolTable* table){
-    auto digital = TypeVisitor::Type(table->root_scope->find("digital"), nullptr);
-    auto analog = TypeVisitor::Type(table->root_scope->find("analog"), nullptr);
-    auto u8 = TypeVisitor::Type(table->root_scope->find("u8"), nullptr);
+    auto digital = TypeVisitor::Type(table->get_symbol(symbols::Primitive::digital.id), nullptr);
+    auto analog = TypeVisitor::Type(table->get_symbol(symbols::Primitive::analog.id), nullptr);
+    auto u8 = TypeVisitor::Type(table->get_symbol(symbols::Primitive::u8.id), nullptr);
     if(pin->is_null()){
-        new_error(Error::None, pin->token, ctx, "");
+        return Error(Error::None, pin->token, ctx, "");
     } else if(!pin->equals(&analog) && !pin->equals(&digital)){
-        new_error(Error::TypeMisMatch, pin->token, ctx, "digital or analog");
+        return Error(Error::TypeMisMatch, pin->token, ctx, "digital or analog");
     } else {
         if(expr->is_null()){
-            new_error(Error::TypeMisMatch, expr->token, ctx, "u8");
-        } else if(!pin->equals(&u8)){
-            new_error(Error::TypeMisMatch, expr->token, ctx, "u8");
+            return Error(Error::TypeMisMatch, expr->token, ctx, "u8");
+        } else if(!expr->equals(&u8)){
+            return Error(Error::TypeMisMatch, expr->token, ctx, "u8");
         }
     }
     pin->token = ctx->start;
@@ -242,22 +236,24 @@ antlrcpp::Any TypeVisitor::visitVariableDecl(eelParser::VariableDeclContext* ctx
     auto type = any_cast<Type>(visit(ctx->typedIdentifier()));
 
     if(type.is_literal && type.literal() == Type::Undefined){
-        auto error = new_error(Error::UndefinedType,type.token,ctx,"");
+        auto error = Error(Error::UndefinedType,type.token,ctx,"");
         this->errors.push_back(error);
     } else {
-        this->expected_type = type; // Set expected type to be used inside expressions
-        auto expr = any_cast<Type>(visit(ctx->expr()));
-        this->expected_type = Type(); // Reset value
+        if(nullptr != ctx->expr()) {
+            this->expected_type = type; // Set expected type to be used inside expressions
+            auto expr = any_cast<Type>(visit(ctx->expr()));
+            this->expected_type = Type(); // Reset value
 
-        if(expr.is_literal && expr.literal() == Type::Undefined){
-            auto error = new_error(Error::UndefinedType,expr.token,ctx,"");
-            this->errors.push_back(error);
-        } else if(!type.equals(&expr)){
-            auto error = new_error(Error::TypeMisMatch,expr.token,ctx,type.to_string());
-            this->errors.push_back(error);
+            if(expr.is_literal && expr.literal() == Type::Undefined){
+                auto error = Error(Error::UndefinedType,expr.token,ctx,"");
+                this->errors.push_back(error);
+            } else if(!type.equals(&expr)){
+                auto error = Error(Error::TypeMisMatch,expr.token,ctx,type.to_string());
+                this->errors.push_back(error);
+            }
         }
-        type.token = ctx->start;
     }
+    type.token = ctx->start;
     return type;
 }
 
@@ -265,7 +261,7 @@ antlrcpp::Any TypeVisitor::visitStaticDecl(eelParser::StaticDeclContext* ctx) {
     auto type = any_cast<Type>(visit(ctx->typedIdentifier()));
 
     if(type.is_literal && type.literal() == Type::Undefined){
-        auto error = new_error(Error::UndefinedType,type.token,ctx,"");
+        auto error = Error(Error::UndefinedType,type.token,ctx,"");
         this->errors.push_back(error);
     } else {
         this->expected_type = type; // Set expected type to be used inside expressions
@@ -273,10 +269,10 @@ antlrcpp::Any TypeVisitor::visitStaticDecl(eelParser::StaticDeclContext* ctx) {
         this->expected_type = Type(); // Reset value
 
         if(expr.is_literal && expr.literal() == Type::Undefined){
-            auto error = new_error(Error::UndefinedType,expr.token,ctx,"");
+            auto error = Error(Error::UndefinedType,expr.token,ctx,"");
             this->errors.push_back(error);
         } else if(!type.equals(&expr)){
-            auto error = new_error(Error::TypeMisMatch,expr.token,ctx,type.to_string());
+            auto error = Error(Error::TypeMisMatch,expr.token,ctx,type.to_string());
             this->errors.push_back(error);
         }
         type.token = ctx->start;
@@ -288,7 +284,7 @@ antlrcpp::Any TypeVisitor::visitConstDecl(eelParser::ConstDeclContext* ctx) {
     auto type = any_cast<Type>(visit(ctx->typedIdentifier()));
 
     if(type.is_literal && type.literal() == Type::Undefined){
-        auto error = new_error(Error::UndefinedType,type.token, ctx,"");
+        auto error = Error(Error::UndefinedType,type.token, ctx,"");
         this->errors.push_back(error);
     } else {
         this->expected_type = type; // Set expected type to be used inside expressions
@@ -296,10 +292,10 @@ antlrcpp::Any TypeVisitor::visitConstDecl(eelParser::ConstDeclContext* ctx) {
         this->expected_type = Type(); // Reset value
 
         if(expr.is_literal && expr.literal() == Type::Undefined){
-            auto error = new_error(Error::UndefinedType,expr.token, ctx,"");
+            auto error = Error(Error::UndefinedType,expr.token, ctx,"");
             this->errors.push_back(error);
         } else if(!type.equals(&expr)){
-            auto error = new_error(Error::TypeMisMatch,expr.token,ctx,type.to_string());
+            auto error = Error(Error::TypeMisMatch,expr.token,ctx,type.to_string());
             this->errors.push_back(error);
         }
         type.token = ctx->start;
@@ -312,7 +308,8 @@ antlrcpp::Any TypeVisitor::visitPinDecl(eelParser::PinDeclContext* ctx) {
     auto u8 = Type(table->root_scope->find("u8"), nullptr);
 
     if(!u8.equals(&expr)){
-        new_error(Error::TypeMisMatch,expr.token,ctx,u8.to_string());
+        auto error = Error(Error::TypeMisMatch,expr.token,ctx,u8.to_string());
+        this->errors.push_back(error);
     }
     return visitChildren(ctx);
 }
@@ -349,13 +346,9 @@ antlrcpp::Any TypeVisitor::visitTypedIdentifier(eelParser::TypedIdentifierContex
 antlrcpp::Any TypeVisitor::visitEventDecl(eelParser::EventDeclContext* ctx) {
     auto event = current_scope->find(ctx->Identifier()->getText());
     if(!event.is_nullptr()){
-        if(event->kind != Symbol_::Kind::Event){
-            // TODO THROW ERROR
-        } else {
-            this->current_function = event->value.event->predicate;
-            visitChildren(ctx);
-            this->current_function = nullptr;
-        }
+        this->current_function = event->value.event->predicate;
+        visitChildren(ctx);
+        this->current_function = nullptr;
     }
     return Type();
 }
@@ -363,16 +356,16 @@ antlrcpp::Any TypeVisitor::visitOnDecl(eelParser::OnDeclContext* ctx) {
     auto fqn = current_scope->find(ctx->fqn()->getText());
 
     if(fqn.is_nullptr()){
-        auto error = new_error(Error::Kind::TypeMisMatch, ctx->fqn()->start, ctx, "Event");
+        auto error = Error(Error::Kind::TypeMisMatch, ctx->fqn()->start, ctx, "Event");
         this->errors.push_back(error);
     }
     auto event = Type(fqn, ctx->fqn()->start);
 
     if(event.is_literal) {
-        auto error = new_error(Error::Kind::TypeMisMatch, event.token, ctx, "Event");
+        auto error = Error(Error::Kind::TypeMisMatch, event.token, ctx, "Event");
         this->errors.push_back(error);
     } else if (event.symbol()->kind != Symbol_::Kind::Event){
-        auto error = new_error(Error::Kind::TypeMisMatch, event.token, ctx, "Event");
+        auto error = Error(Error::Kind::TypeMisMatch, event.token, ctx, "Event");
         this->errors.push_back(error);
     }
     return visitChildren(ctx);
@@ -635,10 +628,10 @@ antlrcpp::Any TypeVisitor::visitReadPinExpr(eelParser::ReadPinExprContext* ctx) 
     auto analog = Type(table->root_scope->find("analog"), nullptr);
     auto pin = std::any_cast<Type>(visit(ctx->fqn()));
     if(pin.is_null()){
-        auto error = new_error(Error::None, pin.token, ctx, "");
+        auto error = Error(Error::None, pin.token, ctx, "");
         this->errors.push_back(error);
     } else if (!pin.equals(&analog) && !pin.equals(&digital)) {
-        auto error = new_error(Error::TypeMisMatch, pin.token, ctx, "digital or analog");
+        auto error = Error(Error::TypeMisMatch, pin.token, ctx, "digital or analog");
         this->errors.push_back(error);
     }
     return Type(table->root_scope->find("u8"), pin.token);
@@ -649,7 +642,7 @@ antlrcpp::Any TypeVisitor::visitReadPinExpr(eelParser::ReadPinExprContext* ctx) 
  * Statements
  */
 antlrcpp::Any TypeVisitor::visitSetPinValueStmt(eelParser::SetPinValueStmtContext* ctx) {
-    auto pin = std::any_cast<Type>(visit(ctx->fqn()));
+    auto pin = Type(current_scope->find(ctx->fqn()->getText()), ctx->fqn()->start);
     auto expr = std::any_cast<Type>(visit(ctx->expr()));
     auto error = pin_stmt(&pin, &expr, ctx, this->table);
     if(error.kind != Error::None){
@@ -659,7 +652,7 @@ antlrcpp::Any TypeVisitor::visitSetPinValueStmt(eelParser::SetPinValueStmtContex
 }
 
 antlrcpp::Any TypeVisitor::visitSetPinModeStmt(eelParser::SetPinModeStmtContext* ctx) {
-    auto pin = std::any_cast<Type>(visit(ctx->fqn()));
+    auto pin = Type(current_scope->find(ctx->fqn()->getText()), ctx->fqn()->start);
     auto expr = std::any_cast<Type>(visit(ctx->expr()));
     auto error = pin_stmt(&pin, &expr, ctx, this->table);
     if(error.kind != Error::None){
@@ -669,7 +662,7 @@ antlrcpp::Any TypeVisitor::visitSetPinModeStmt(eelParser::SetPinModeStmtContext*
 }
 
 antlrcpp::Any TypeVisitor::visitSetPinNumberStmt(eelParser::SetPinNumberStmtContext* ctx) {
-    auto pin = std::any_cast<Type>(visit(ctx->fqn()));
+    auto pin = Type(current_scope->find(ctx->fqn()->getText()), ctx->fqn()->start);
     auto expr = std::any_cast<Type>(visit(ctx->expr()));
     auto error = pin_stmt(&pin, &expr, ctx, this->table);
     if(error.kind != Error::None){
@@ -693,7 +686,7 @@ antlrcpp::Any TypeVisitor::visitAwaitStmt(eelParser::AwaitStmtContext* ctx) {
     auto expr = any_cast<Type>(visit(ctx->expr()));
     auto boolean = Type(Type::Kind::Bool, nullptr);
     if(!expr.equals(&boolean)){
-        auto error = new_error(Error::Kind::TypeMisMatch, expr.token, ctx, boolean.to_string());
+        auto error = Error(Error::Kind::TypeMisMatch, expr.token, ctx, boolean.to_string());
         this->errors.push_back(error);
     }
     return expr;
@@ -703,19 +696,19 @@ antlrcpp::Any TypeVisitor::visitReturnStmt(eelParser::ReturnStmtContext* ctx) {
     if(nullptr == ctx->expr()){
         if(this->current_function->has_return_type){
             auto return_type = Type(this->current_function->return_type, nullptr);
-            auto error = new_error(Error::Kind::InvalidReturnType, ctx->start, ctx, return_type.to_string());
+            auto error = Error(Error::Kind::InvalidReturnType, ctx->start, ctx, return_type.to_string());
             this->errors.push_back(error);
         }
     } else {
         auto expr = any_cast<Type>(visit(ctx->expr()));
         auto undefined = Type(Type::Kind::Undefined, nullptr);
         if(!this->current_function->has_return_type && !expr.equals(&undefined)){
-            auto error = new_error(Error::Kind::InvalidReturnType, expr.token, ctx, "return;");
+            auto error = Error(Error::Kind::InvalidReturnType, expr.token, ctx, "return;");
             this->errors.push_back(error);
         } else {
             auto return_type = Type(this->current_function->return_type, nullptr);
             if(!expr.equals(&return_type)){
-                auto error = new_error(Error::Kind::InvalidReturnType, expr.token, ctx, return_type.to_string());
+                auto error = Error(Error::Kind::InvalidReturnType, expr.token, ctx, return_type.to_string());
                 this->errors.push_back(error);
             }
         }
@@ -732,10 +725,10 @@ antlrcpp::Any TypeVisitor::visitConditionBlock(eelParser::ConditionBlockContext*
     auto boolean = Type(Type::Kind::Bool, nullptr);
 
     if(expr.is_null()){
-        auto error = new_error(Error::None, expr.token, ctx, "");
+        auto error = Error(Error::None, expr.token, ctx, "");
         this->errors.push_back(error);
     } else if (!expr.equals(&boolean)){
-        auto error = new_error(Error::TypeMisMatch, expr.token, ctx, boolean.to_string());
+        auto error = Error(Error::TypeMisMatch, expr.token, ctx, boolean.to_string());
         this->errors.push_back(error);
     }
     return expr;

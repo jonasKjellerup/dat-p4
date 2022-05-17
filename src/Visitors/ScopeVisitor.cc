@@ -93,7 +93,7 @@ antlrcpp::Any ScopeVisitor::visitTypedIdentifier(eelParser::TypedIdentifierConte
     auto _type = ctx->type()->getText();
     auto type = current_scope->find(_type);
     if (type.is_nullptr()){
-        current_scope->defer_symbol(_type, Symbol_::Kind::Type);
+        type = current_scope->defer_symbol(_type, Symbol_::Kind::Type);
     }
     return TypedIdentifier{ type, identifier };
 }
@@ -119,13 +119,39 @@ antlrcpp::Any ScopeVisitor::visitEnumDecl(eelParser::EnumDeclContext* ctx) {
 }
 
 antlrcpp::Any ScopeVisitor::visitEventDecl(eelParser::EventDeclContext* ctx) {
+    auto name = ctx->Identifier()->getText();
+    auto func_name = "Event-" + name;
+    auto event = current_scope->find(name);
     auto predicate = ctx->stmtBlock();
-    if(predicate == nullptr){
-        current_scope->declare_event(ctx->Identifier()->getText());
+    if(event.is_nullptr()){
+        // Create predicate less event.
+        if(predicate == nullptr){
+            current_scope->declare_event(ctx->Identifier()->getText());
+        } else {
+            // Create event with predicate
+            auto func = current_scope->declare_func(func_name, current_scope->find("bool"));
+            auto event_symbol = current_scope->declare_event(name, func->value.function);
+            if(!event_symbol.is_nullptr()) {
+                this->current_event = event_symbol->value.event;
+                auto scope = any_cast<Scope>(visit(ctx->stmtBlock()));
+                func->value.function->scope = scope;
+                this->current_event = nullptr;
+            }
+        }
     } else {
-        auto name = ctx->Identifier()->getText();
-        auto func_name = "Event-" + name;
-
+        // Name already used
+        if(event->kind != Symbol_::Kind::Event){
+            auto error = Error(Error::AlreadyDefined, ctx->Identifier()->getSymbol(), ctx, "");
+            this->errors.push_back(error);
+            return {};
+        }
+        // if no predicate supplied or event has a predicate
+        if(predicate == nullptr || event->value.event->is_complete){
+            auto error = Error(Error::DuplicateEvent, ctx->Identifier()->getSymbol(), ctx, "");
+            this->errors.push_back(error);
+            return {};
+        }
+        // Otherwise defined deferred event.
         auto func = current_scope->declare_func(func_name, current_scope->find("bool"));
         auto event_symbol = current_scope->declare_event(name, func->value.function);
         if(!event_symbol.is_nullptr()) {
