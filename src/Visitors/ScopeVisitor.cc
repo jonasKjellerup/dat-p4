@@ -22,8 +22,11 @@ std::any ScopeVisitor::visitLoopDecl(eelParser::LoopDeclContext* ctx) {
         throw InternalError(InternalError::ScopeAnalysis, "LoopDecl node encountered in non-root scope context.");
 
     auto func = current_scope->declare_func(visitors::builtin_loop_name);
+    auto scope = current_scope;
+    current_scope = func->value.function->scope;
     active_sequence = func->value.function->sequence = new Sequence(func->value.function->scope);
     visitChildren(ctx->stmtBlock());
+    current_scope = scope;
     active_sequence = nullptr;
     return {};
 }
@@ -33,8 +36,11 @@ std::any ScopeVisitor::visitSetupDecl(eelParser::SetupDeclContext* ctx) {
         throw InternalError(InternalError::ScopeAnalysis, "SetupDecl node encountered in non-root scope context.");
 
     auto func = current_scope->declare_func(visitors::builtin_setup_name);
+    auto scope = current_scope;
+    current_scope = func->value.function->scope;
     active_sequence = func->value.function->sequence = new Sequence(func->value.function->scope);
     visitChildren(ctx->stmtBlock());
+    current_scope = scope;
     active_sequence = nullptr;
     return {};
 }
@@ -126,26 +132,33 @@ antlrcpp::Any ScopeVisitor::visitEnumDecl(eelParser::EnumDeclContext* ctx) {
     return eelBaseVisitor::visitEnumDecl(ctx);
 }
 
+static symbols::Function* create_predicate_function(SymbolTable& table, Scope& current_scope) {
+    auto function = new symbols::Function;
+    function->has_return_type = true;
+    function->return_type = table.get_symbol(symbols::Primitive::boolean.id);
+    function->scope = table.derive_scope(current_scope);
+    function->sequence = new Sequence(function->scope);
+
+    return function;
+}
+
 antlrcpp::Any ScopeVisitor::visitEventDecl(eelParser::EventDeclContext* ctx) {
     auto name = ctx->Identifier()->getText();
-    auto func_name = "Event-" + name;
     auto event = current_scope->find(name);
     auto predicate = ctx->stmtBlock();
+
     if(event.is_nullptr()){
         // Create predicate less event.
         if(predicate == nullptr){
             current_scope->declare_event(ctx->Identifier()->getText());
         } else {
             // Create event with predicate
-            auto function = new symbols::Function;
-            function->has_return_type = true;
-            function->return_type = table->get_symbol(symbols::Primitive::boolean.id);
+            auto function = create_predicate_function(*table, current_scope);
 
             auto event_symbol = current_scope->declare_event(name, function);
             if(!event_symbol.is_nullptr()) {
                 this->current_event = event_symbol->value.event;
-                function->scope = table->derive_scope(current_scope);
-                this->active_sequence = function->sequence = new Sequence(function->scope);
+                this->active_sequence = function->sequence;
                 visitChildren(ctx->stmtBlock());
                 this->current_event = nullptr;
                 this->active_sequence = nullptr;
@@ -159,23 +172,24 @@ antlrcpp::Any ScopeVisitor::visitEventDecl(eelParser::EventDeclContext* ctx) {
             return {};
         }
 
-        /*
-         * TODO review the below blocks
-         */
+        auto& e = *(event->value.event);
         // if no predicate supplied or event has a predicate
-        if(predicate == nullptr || event->value.event->is_complete){
+        if(e.is_complete){
             auto error = Error(Error::DuplicateEvent, ctx->Identifier()->getSymbol(), ctx, "");
             this->errors.push_back(error);
             return {};
-        }
-        // Otherwise defined deferred event.
-        auto func = current_scope->declare_func(func_name, current_scope->find("bool"));
-        auto event_symbol = current_scope->declare_event(name, func->value.function);
-        if(!event_symbol.is_nullptr()) {
-            this->current_event = event_symbol->value.event;
-            auto scope = any_cast<Scope>(visit(ctx->stmtBlock()));
-            func->value.function->scope = scope;
-            this->current_event = nullptr;
+        } else {
+            e.is_complete = true;
+            if (predicate != nullptr) {
+                e.has_predicate = true;
+                e.predicate = create_predicate_function(*table, current_scope);
+
+                this->current_event = &e;
+                this->active_sequence = e.predicate->sequence;
+                visitChildren(ctx->stmtBlock());
+                this->current_event = nullptr;
+                this->active_sequence = nullptr;
+            }
         }
     }
     return {};
@@ -193,7 +207,7 @@ antlrcpp::Any ScopeVisitor::visitOnDecl(eelParser::OnDeclContext* ctx) {
     function.scope = table->derive_scope(current_scope);
     this->active_sequence = function.sequence = new Sequence(function.scope);
 
-    visitChildren(ctx);
+    visitChildren(ctx->stmtBlock());
     this->active_sequence = nullptr;
 
     return {};

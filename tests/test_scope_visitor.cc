@@ -4,6 +4,7 @@
 #include "eelLexer.h"
 #include "eelParser.h"
 #include "Visitors/ScopeVisitor.hpp"
+#include "Visitors/utility.hpp"
 
 using namespace std;
 using namespace antlr4;
@@ -68,8 +69,8 @@ TEST_CASE("duplicate event", "[scope_analysis]"){
 TEST_CASE("Setup/Loop void function", "[scope_analysis]") {
     SCOPE_ANALYSIS("setup{} loop{}")
     REQUIRE(table.get_scope_count() == 3);
-    auto setup = table.get_scope(0)->find("setup");
-    auto loop = table.get_scope(0)->find("loop");
+    auto setup = table.get_scope(0)->find(visitors::builtin_setup_name);
+    auto loop = table.get_scope(0)->find(visitors::builtin_loop_name);
     REQUIRE(setup->kind == Symbol_::Kind::Function);
     REQUIRE(setup->value.function->has_return_type == false);
     REQUIRE(loop->kind == Symbol_::Kind::Function);

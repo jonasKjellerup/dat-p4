@@ -740,7 +740,3 @@ antlrcpp::Any TypeVisitor::visitConditionBlock(eelParser::ConditionBlockContext*
     }
     return expr;
 }
-
-
-
-

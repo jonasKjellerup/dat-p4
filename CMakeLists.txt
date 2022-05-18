@@ -36,7 +36,6 @@ add_library(compiler
         src/error.cc
         src/symbols/event.cpp
         src/visitors/codegen.cc
-        src/visitors/async_analysis.cc
         src/visitors/utility.cc
         src/Visitors/ScopeVisitor.cc
         src/Visitors/TypeVisitor.cc)
