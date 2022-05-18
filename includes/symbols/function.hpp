@@ -3,6 +3,7 @@
 #include <vector>
 #include <string>
 #include <symbol_table.hpp>
+#include <eelParser.h>
 
 namespace eel {
     struct Sequence;
@@ -19,9 +20,9 @@ namespace eel::symbols {
         bool has_return_type;
         bool is_async = false;
         Sequence* sequence = nullptr;
-
-
         std::string type_id;
+
+        eel::eelParser::StmtBlockContext* body = nullptr;
 
     };
 }

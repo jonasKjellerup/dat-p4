@@ -4,6 +4,7 @@
 #include <antlr4-runtime.h>
 
 #include <symbol_table.hpp>
+#include <sequence.hpp>
 
 namespace eel::visitors {
     using namespace eel;
@@ -15,6 +16,9 @@ namespace eel::visitors {
         FILE* stream;
 
         Scope current_scope;
+        Sequence* current_sequence = nullptr;
+        uint8_t  async_state_counter = 0;
+        bool is_in_async_state_case = false;
 
         CodegenVisitor(SymbolTable& table, FILE* stream);
 
@@ -46,7 +50,13 @@ namespace eel::visitors {
         any visitSetupDecl(eelParser::SetupDeclContext *ctx) override;
         any visitLoopDecl(eelParser::LoopDeclContext *ctx) override;
         any visitEventDecl(eelParser::EventDeclContext* ctx) override;
-        any visitPinDecl(eelParser::PinDeclContext *ctx) override;
+        any visitOnDecl(eelParser::OnDeclContext* ctx) override;
+        any visitPinDecl(eelParser::PinDeclContext*ctx) override;
+
+        // Stmts
+        any visitStmtBlock(eelParser::StmtBlockContext* ctx) override;
+        any visitAwaitStmt(eelParser::AwaitStmtContext* ctx) override;
+        any visitReturnStmt(eelParser::ReturnStmtContext *ctx) override;
 
     };
 }

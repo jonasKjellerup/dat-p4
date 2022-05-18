@@ -37,6 +37,11 @@ namespace eel {
         TablePtr(Id id, SymbolTable* context) : id(id), table(context){}
 
         T* operator->();
+        const T* operator->() const {
+            // We cast away the constness to reuse the specialisations of `T* operator->();`
+            auto ptr = const_cast<eel::TablePtr<T>*>(this);
+            return static_cast<const T*>(ptr->operator->());
+        }
 
         bool is_nullptr() {
             return this->table == nullptr;

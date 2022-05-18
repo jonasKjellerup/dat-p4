@@ -1,5 +1,6 @@
 #include <Visitors/ScopeVisitor.hpp>
 #include <Visitors/utility.hpp>
+#include <fmt/core.h>
 
 ScopeVisitor::ScopeVisitor(SymbolTable* _table) {
     table = _table;
@@ -156,6 +157,7 @@ antlrcpp::Any ScopeVisitor::visitEventDecl(eelParser::EventDeclContext* ctx) {
             auto function = create_predicate_function(*table, current_scope);
 
             auto event_symbol = current_scope->declare_event(name, function);
+            function->type_id = fmt::format("{}_predicate", event_symbol->id);
             if(!event_symbol.is_nullptr()) {
                 this->current_event = event_symbol->value.event;
                 this->active_sequence = function->sequence;
@@ -183,6 +185,7 @@ antlrcpp::Any ScopeVisitor::visitEventDecl(eelParser::EventDeclContext* ctx) {
             if (predicate != nullptr) {
                 e.has_predicate = true;
                 e.predicate = create_predicate_function(*table, current_scope);
+                e.predicate->type_id = fmt::format("{}_predicate", event->id);
 
                 this->current_event = &e;
                 this->active_sequence = e.predicate->sequence;
@@ -334,6 +337,7 @@ std::any ScopeVisitor::visitAwaitStmt(eelParser::AwaitStmtContext* ctx) {
         throw InternalError(InternalError::ScopeAnalysis, "Invalid visit to AwaitStmt without active_sequence.");
 
     active_sequence->yield(); // TODO mark event as awaited assuming ctx is an event.
+    visitChildren(ctx);
 
     return {};
 }
