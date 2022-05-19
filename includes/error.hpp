@@ -54,6 +54,8 @@ public:
     InternalError(Subsystem src, std::string&& msg);
     void print() const;
 
+    [[nodiscard]] const char* what() const noexcept override;
+
     Subsystem src;
     std::string msg;
 };

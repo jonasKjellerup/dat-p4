@@ -1,6 +1,8 @@
 #include "error.hpp"
 #include <utility>
 #include <iostream>
+#include <fmt/core.h>
+#include <fmt/ostream.h>
 
 Error::Pos Error::get_pos() const {
     return this->location;
@@ -107,5 +109,9 @@ InternalError::InternalError(Subsystem src, std::string&& msg) : src(src), msg(m
 void InternalError::print() const {
     static const char* error_labels[] = {"Codegen", "SymbolTable", "ScopeAnalysis"};
 
-    std::cout << '[' << error_labels[src] << "] " << msg << std::endl;
+    fmt::print(std::cout, "[{}} {}\n", error_labels[src], msg);
+}
+
+const char* InternalError::what() const noexcept {
+    return msg.c_str();
 }

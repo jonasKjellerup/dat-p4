@@ -138,7 +138,7 @@ namespace eel {
         /// is declared) point to the expected symbol.
         Symbol defer_symbol(std::string name, Symbol_::Kind);
 
-        void declare_var(Symbol& type, const std::string& name, bool is_static = false);
+        symbols::Variable* declare_var(Symbol& type, const std::string& name, bool is_static = false);
         // TODO define var decl with default value
         // void declare_var(Symbol& type, const std::string& name, Expr init, bool is_static = false);
 

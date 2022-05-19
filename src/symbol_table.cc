@@ -102,9 +102,10 @@ bool Symbol_::Indirect::is_set() const {
  * Symbol declaration
  */
 
-void Scope_::declare_var(Symbol& type, const std::string& name, bool is_static) {
+symbols::Variable* Scope_::declare_var(Symbol& type, const std::string& name, bool is_static) {
     if (this->symbol_map.contains(name)) {
         // TODO throw exception
+        return nullptr;
     }
 
     auto& symbol = this->context->new_symbol();
@@ -119,6 +120,8 @@ void Scope_::declare_var(Symbol& type, const std::string& name, bool is_static) 
     symbol.value.variable = var;
 
     this->symbol_map.insert(std::make_pair(name, symbol.id));
+
+    return var;
 }
 
 void Scope_::declare_const(Symbol& type, const std::string& name, ConstExpr expr) {
@@ -175,6 +178,7 @@ static Symbol_& create_event_symbol(SymbolTable* context, const std::string& nam
     symbol.kind = Symbol_::Kind::Event;
     symbol.name = name;
     symbol.value.event = new symbols::Event;
+    symbol.value.event->id = fmt::format("event{}", symbol.id);
 
     return symbol;
 }

@@ -38,7 +38,7 @@ add_library(compiler
         src/visitors/codegen.cc
         src/visitors/utility.cc
         src/Visitors/ScopeVisitor.cc
-        src/Visitors/TypeVisitor.cc)
+        src/Visitors/TypeVisitor.cc src/symbols/function.cc)
 target_link_libraries(compiler fmt::fmt)
 target_link_libraries(compiler antlr4_static)
 target_link_libraries(compiler Threads::Threads)

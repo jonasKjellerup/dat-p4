@@ -21,7 +21,6 @@ void Event::add_handle(Scope scope, visitors::SourcePos pos) {
                     {},     // return type
                     {},     // parameters
                     false,  // has_return_type
-                    false,
                     nullptr,
                     fmt::format("{}_handle{}", this->id, this->event_handles.size())
             }

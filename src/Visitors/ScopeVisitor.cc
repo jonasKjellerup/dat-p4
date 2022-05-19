@@ -23,6 +23,8 @@ std::any ScopeVisitor::visitLoopDecl(eelParser::LoopDeclContext* ctx) {
         throw InternalError(InternalError::ScopeAnalysis, "LoopDecl node encountered in non-root scope context.");
 
     auto func = current_scope->declare_func(visitors::builtin_loop_name);
+    func->value.function->body = ctx->stmtBlock();
+
     auto scope = current_scope;
     current_scope = func->value.function->scope;
     active_sequence = func->value.function->sequence = new Sequence(func->value.function->scope);
@@ -37,6 +39,8 @@ std::any ScopeVisitor::visitSetupDecl(eelParser::SetupDeclContext* ctx) {
         throw InternalError(InternalError::ScopeAnalysis, "SetupDecl node encountered in non-root scope context.");
 
     auto func = current_scope->declare_func(visitors::builtin_setup_name);
+    func->value.function->body = ctx->stmtBlock();
+
     auto scope = current_scope;
     current_scope = func->value.function->scope;
     active_sequence = func->value.function->sequence = new Sequence(func->value.function->scope);
@@ -64,7 +68,10 @@ antlrcpp::Any ScopeVisitor::visitImplBlock(eelParser::ImplBlockContext* ctx) {
  * */
 antlrcpp::Any ScopeVisitor::visitVariableDecl (eelParser::VariableDeclContext* ctx) {
     auto res = any_cast<TypedIdentifier>(visit(ctx->typedIdentifier()));
-    current_scope->declare_var(res.type, res.identifier);
+    auto var = current_scope->declare_var(res.type, res.identifier);
+    if (var != nullptr) {
+        var->has_value = ctx->expr() != nullptr;
+    }
     return {};
 }
 
@@ -157,7 +164,8 @@ antlrcpp::Any ScopeVisitor::visitEventDecl(eelParser::EventDeclContext* ctx) {
             auto function = create_predicate_function(*table, current_scope);
 
             auto event_symbol = current_scope->declare_event(name, function);
-            function->type_id = fmt::format("{}_predicate", event_symbol->id);
+            function->type_id = fmt::format("{}_predicate", event_symbol->value.event->id);
+            function->body = ctx->stmtBlock();
             if(!event_symbol.is_nullptr()) {
                 this->current_event = event_symbol->value.event;
                 this->active_sequence = function->sequence;
@@ -185,7 +193,8 @@ antlrcpp::Any ScopeVisitor::visitEventDecl(eelParser::EventDeclContext* ctx) {
             if (predicate != nullptr) {
                 e.has_predicate = true;
                 e.predicate = create_predicate_function(*table, current_scope);
-                e.predicate->type_id = fmt::format("{}_predicate", event->id);
+                e.predicate->type_id = fmt::format("{}_predicate", e.id);
+                e.predicate->body = ctx->stmtBlock();
 
                 this->current_event = &e;
                 this->active_sequence = e.predicate->sequence;
@@ -208,6 +217,7 @@ antlrcpp::Any ScopeVisitor::visitOnDecl(eelParser::OnDeclContext* ctx) {
     auto& function = event.get_handle(loc);
 
     function.scope = table->derive_scope(current_scope);
+    function.body = ctx->stmtBlock();
     this->active_sequence = function.sequence = new Sequence(function.scope);
 
     visitChildren(ctx->stmtBlock());

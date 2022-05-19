@@ -20,6 +20,8 @@ namespace eel::visitors {
         uint8_t  async_state_counter = 0;
         bool is_in_async_state_case = false;
 
+        std::vector<symbols::Event*> events;
+
         CodegenVisitor(SymbolTable& table, FILE* stream);
 
         any visitProgram(eelParser::ProgramContext *ctx) override;
@@ -31,8 +33,9 @@ namespace eel::visitors {
         any visitIntegerLiteral(eelParser::IntegerLiteralContext *ctx) override;
         any visitStringLiteral(eelParser::StringLiteralContext *ctx) override;
 
-        // Expressions - Access
+        // Expressions - Access/assign
         any visitIdentifier(eelParser::IdentifierContext *ctx) override;
+        any visitAssignExpr(eelParser::AssignExprContext *ctx) override;
 
         // Expressions - Arithmetic operators
         any visitPos(eelParser::PosContext *ctx) override;
@@ -54,6 +57,7 @@ namespace eel::visitors {
         any visitPinDecl(eelParser::PinDeclContext*ctx) override;
 
         // Stmts
+        any visitStmt(eelParser::StmtContext *ctx) override;
         any visitStmtBlock(eelParser::StmtBlockContext* ctx) override;
         any visitAwaitStmt(eelParser::AwaitStmtContext* ctx) override;
         any visitReturnStmt(eelParser::ReturnStmtContext *ctx) override;

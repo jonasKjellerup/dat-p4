@@ -59,11 +59,68 @@ CodegenVisitor::CodegenVisitor(eel::SymbolTable& table, FILE* stream)
 }
 
 any CodegenVisitor::visitProgram(eelParser::ProgramContext* ctx) {
+    static const char* setup_state_id = "__setup_state";
+    static const char* loop_state_id = "__loop_state";
     fmt::print(stream, "#include <runtime/all.hpp>\n");
     visitChildren(ctx);
 
     // TODO
-    fmt::print(stream, "int main(void) {{ return 0; }}\n");
+    fmt::print(stream, "\nint main(void) {{\n");
+
+    // This can break if the user has defined another symbol
+    // using the predetermined names. We just assume that if
+    // it exists then it is a function.
+    auto setup = current_scope->find(builtin_setup_name);
+    if (!setup.is_nullptr()) {
+        auto f = setup->value.function;
+        if (f->is_async()) {
+            fmt::print(stream, "{setup_type}::State {setup_state} {{}};\n"
+                               "while (!{setup_type}::step({setup_state})) {{\n",
+                               fmt::arg("setup_type", f->type_id),
+                               fmt::arg("setup_state", setup_state_id));
+
+            for (auto event : events) {
+                fmt::print(stream, "run_handles<decltype({event_id}})>({event_id}});\n",
+                           fmt::arg("event_id", event->id));
+            }
+
+            fmt::print(stream, "}}\n");
+        } else {
+            fmt::print(stream, "{}::invoke();\n", f->type_id);
+        }
+    }
+
+
+    auto loop = current_scope->find(builtin_loop_name);
+    if (!loop.is_nullptr()) {
+        auto f = loop->value.function;
+        if (f->is_async()) {
+            fmt::print(stream, "{}::State {} {{}};\n",
+                       f->type_id, loop_state_id);
+        }
+    }
+
+    fmt::print(stream, "while (true) {{\n");
+
+    for (auto event : events) {
+        fmt::print(stream, "run_handles<decltype({event_id})>({event_id});\n",
+                   fmt::arg("event_id", event->id));
+    }
+
+    if (!loop.is_nullptr()) {
+        auto f = loop->value.function;
+        if (f->is_async()) {
+            fmt::print(stream, "if ({loop_type}::step({loop_state})) {loop_state}.s = 0;\n",
+                       fmt::arg("loop_type", f->type_id),
+                       fmt::arg("loop_state", loop_state_id));
+        } else {
+            fmt::print(stream, "{}::invoke();\n", f->type_id);
+        }
+    }
+
+    fmt::print(stream, "}}\n");
+
+    fmt::print(stream, "return 0; }}\n");
     return {};
 }
 
@@ -99,7 +156,7 @@ any CodegenVisitor::visitStringLiteral(eelParser::StringLiteralContext*) {
 }
 
 /*
- * Access expressions
+ * Access/assign expressions
  */
 
 // TODO make this visitFqn at some point if we wanna implement member/namespace access
@@ -111,6 +168,13 @@ any CodegenVisitor::visitIdentifier(eelParser::IdentifierContext* ctx) {
     check_symbol(symbol, Symbol_::Kind::Variable, identifier);
 
     return generate_variable_id(symbol);
+}
+
+any CodegenVisitor::visitAssignExpr(eelParser::AssignExprContext* ctx) {
+    auto lop = std::any_cast<std::string>(visit(ctx->var));
+    auto rop = std::any_cast<std::string>(visit(ctx->right));
+
+    return fmt::format("{} = {}", lop, rop);
 }
 
 /*
@@ -238,17 +302,20 @@ any CodegenVisitor::visitPinDecl(eelParser::PinDeclContext* ctx) {
 
 any CodegenVisitor::visitEventDecl(eelParser::EventDeclContext* ctx) {
     auto symbol = table.root_scope->find(ctx->Identifier()->getText());
-    if (symbol->kind == Symbol_::Kind::Event)
+    if (symbol->kind != Symbol_::Kind::Event)
         throw InternalError(InternalError::Codegen, "Invalid symbol. Expected event.");
 
     auto event = symbol->value.event;
     if (!event->is_complete)
         throw InternalError(InternalError::Codegen, "Incomplete event encountered during codegen.");
 
+    events.push_back(event);
+
     // If the event is never used (no `awaits` or `on` blocks)
     // don't bother generating the event.
-    if (!event->is_awaited && event->get_handles().empty())
-        return {};
+    // TODO re-enable this check once is_awaited is updated properly
+    // if (!event->is_awaited && event->get_handles().empty())
+    //    return {};
 
     auto block = ctx->stmtBlock();
     if (block == nullptr)
@@ -296,6 +363,17 @@ any CodegenVisitor::visitOnDecl(eelParser::OnDeclContext*) {
  * Statements
  */
 
+any CodegenVisitor::visitStmt(eelParser::StmtContext* ctx) {
+    if (ctx->expr() != nullptr) {
+        auto expr_result = std::any_cast<std::string>(visit(ctx->expr()));
+        fmt::print(stream, "{};", expr_result);
+    } else {
+        visitChildren(ctx);
+    }
+
+    return {};
+}
+
 any CodegenVisitor::visitStmtBlock(eelParser::StmtBlockContext* ctx) {
     auto sequence_point = dynamic_cast<Block*>(current_sequence->next());
 
@@ -309,7 +387,7 @@ any CodegenVisitor::visitStmtBlock(eelParser::StmtBlockContext* ctx) {
     }
 
     fmt::print(stream, "{{");
-    visitChildren(ctx); // TODO this will cause issues with nested cases
+    visitChildren(ctx);
 
     if (sequence_point->kind == SequencePoint::AsyncPoint) {
         close_open_async_case(*this);
@@ -338,8 +416,9 @@ any CodegenVisitor::visitAwaitStmt(eelParser::AwaitStmtContext* ctx) {
         } else if (symbol->kind == Symbol_::Kind::Variable) {
             predicate = std::any_cast<std::string>(visit(fqn));
         } else {
-            // Report error: "Cannot await non-event/bool-expr"
-            return {};
+            // This should have been checked by the type checker? TODO check up on this
+            // Throw error for edge case where type checker does not catch this.
+            throw InternalError(InternalError::Codegen, "Cannot await non-event/bool expr.");
         }
     }
 
@@ -349,6 +428,24 @@ any CodegenVisitor::visitAwaitStmt(eelParser::AwaitStmtContext* ctx) {
                        "if ({}) state.s += 1;return 0;}}",
                        async_state_counter++,
                        predicate);
+
+    return {};
+}
+
+any CodegenVisitor::visitReturnStmt(eelParser::ReturnStmtContext* ctx) {
+    auto is_async_return = current_sequence->start->kind == SequencePoint::AsyncPoint;
+    if (ctx->expr() != nullptr) {
+        auto value = std::any_cast<std::string>(visit(ctx->expr()));
+        if (is_async_return) {
+            fmt::print(stream, "state.r = {};return 1;", value);
+        } else {
+            fmt::print(stream, "return {};", value);
+        }
+    } else if (is_async_return) {
+        fmt::print(stream, "return 1;");
+    } else {
+        fmt::print(stream, "return;");
+    }
 
     return {};
 }
@@ -374,11 +471,17 @@ void generate_sync_functor_type(
         const symbols::Function& function,
         CodegenVisitor& visitor
 ) {
+    const char* return_type_name = "void";
+    if (function.has_return_type) {
+        return_type_name = function.return_type->value.type->type_target_name().c_str();
+    }
+
     fmt::print(stream,
-               "struct {} {{ static void invoke() {{",
-               function.type_id);
+               "struct {} {{ static {} invoke() {{",
+               function.type_id,
+               return_type_name);
     generate_functor_core(function, visitor);
-    fmt::print(stream, " }} }};");
+    fmt::print(stream, "}} }};");
 }
 
 void generate_async_functor_type(
@@ -428,7 +531,7 @@ void generate_async_functor_type(
 
     fmt::print(stream, "}} }} }};"); // End of step body and functor struct
 
-};
+}
 
 void close_open_async_case(CodegenVisitor& visitor) {
     if (visitor.is_in_async_state_case) {
