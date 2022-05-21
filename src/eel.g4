@@ -318,8 +318,8 @@ breakStmt: Break ';';
 continueStmt: Continue ';';
 returnStmt: Return expr? ';';
 
-elseStmt: Else stmt | Else stmtBlock ;
-ifStmt: If conditionBlock stmt elseStmt? | If conditionBlock stmtBlock elseStmt? ;
+elseStmt: Else stmt ;
+ifStmt: If conditionBlock stmt elseStmt?;
 
 switchStmt:
     Switch conditionBlock '{' ((caseStmt)* | (caseStmt* defaultStmt?)) '}'

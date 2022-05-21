@@ -47,6 +47,10 @@ bool Scope_::is_root() {
     return this->parent.is_nullptr();
 }
 
+const decltype(Scope_::symbol_map)& Scope_::members() const {
+    return this->symbol_map;
+}
+
 
 /*
  * Symbol table implementation

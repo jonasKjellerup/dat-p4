@@ -1,6 +1,7 @@
 #pragma once
 
 #include <vector>
+#include <tuple>
 
 #include <symbol_table.hpp>
 
@@ -13,11 +14,12 @@ namespace eel {
         };
 
         explicit SequencePoint(Kind kind = SyncPoint);
+        virtual ~SequencePoint();
+
+        [[nodiscard]] bool is_async() const;
 
         Kind kind;
         SequencePoint* next;
-
-        virtual ~SequencePoint();
     };
 
     struct Block final : public SequencePoint {
@@ -40,6 +42,7 @@ namespace eel {
         SequencePoint* current_point;
 
         explicit Sequence(Scope scope);
+        ~Sequence();
 
         Sequence& enter_block(Scope scope);
         Sequence& leave_block();
@@ -48,7 +51,11 @@ namespace eel {
         void reset();
         SequencePoint* next();
 
-        ~Sequence();
+        [[nodiscard]] std::tuple<SequencePoint*, Block*> snapshot() const;
+        void restore(const std::tuple<SequencePoint*, Block*>& snapshot);
+
+        bool is_next_async();
+
     };
 }
 

@@ -36,6 +36,7 @@ namespace eel::visitors {
         // Expressions - Access/assign
         any visitIdentifier(eelParser::IdentifierContext *ctx) override;
         any visitAssignExpr(eelParser::AssignExprContext *ctx) override;
+        any visitReadPinExpr(eelParser::ReadPinExprContext *ctx) override;
 
         // Expressions - Arithmetic operators
         any visitPos(eelParser::PosContext *ctx) override;
@@ -61,6 +62,7 @@ namespace eel::visitors {
         any visitStmtBlock(eelParser::StmtBlockContext* ctx) override;
         any visitAwaitStmt(eelParser::AwaitStmtContext* ctx) override;
         any visitReturnStmt(eelParser::ReturnStmtContext *ctx) override;
+        any visitIfStmt(eelParser::IfStmtContext *ctx) override;
 
     };
 }

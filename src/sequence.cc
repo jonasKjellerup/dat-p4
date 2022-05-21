@@ -8,6 +8,10 @@ SequencePoint::~SequencePoint() {
     delete next;
 }
 
+bool SequencePoint::is_async() const {
+    return kind != SequencePoint::SyncPoint;
+}
+
 Block::Block(Scope scope, Block* parent)
         : SequencePoint(), scope(scope), parent(parent), child(nullptr) {}
 
@@ -84,9 +88,32 @@ SequencePoint* Sequence::next() {
         current_point = current_block->parent;
     }
 
+    if (auto b = dynamic_cast<Block*>(current_point)) {
+        current_block = b;
+    }
+
     return current_point;
 }
 
 Sequence::~Sequence() {
     delete start;
+}
+
+std::tuple<SequencePoint*, Block*> Sequence::snapshot() const {
+    return std::make_tuple(current_point, current_block);
+}
+
+void Sequence::restore(const std::tuple<SequencePoint*, Block*>& snapshot) {
+    current_point = std::get<0>(snapshot);
+    current_block = std::get<1>(snapshot);
+}
+
+bool Sequence::is_next_async() {
+    auto state = snapshot();
+
+    auto result = next()->is_async();
+
+    restore(state);
+
+    return result;
 }

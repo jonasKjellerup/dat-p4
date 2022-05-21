@@ -139,8 +139,6 @@ namespace eel {
         Symbol defer_symbol(std::string name, Symbol_::Kind);
 
         symbols::Variable* declare_var(Symbol& type, const std::string& name, bool is_static = false);
-        // TODO define var decl with default value
-        // void declare_var(Symbol& type, const std::string& name, Expr init, bool is_static = false);
 
         struct ConstExpr {}; // TODO replace with proper type
         void declare_const(Symbol& type, const std::string& name, ConstExpr expr);
@@ -169,11 +167,14 @@ namespace eel {
         void declare_namespace(const std::string& name);
 
         bool is_root();
+
     private:
-        Id id;
         std::unordered_map<std::string, Symbol_::Id> symbol_map;
         Scope parent{};
         SymbolTable* context;
+        Id id;
+    public:
+        [[nodiscard]] const decltype(symbol_map)& members() const;
     };
 
     /// \brief Info used to track unresolved symbols.
