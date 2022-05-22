@@ -2,6 +2,7 @@
 
 #include <eelBaseVisitor.h>
 #include <antlr4-runtime.h>
+#include <iostream>
 
 #include <symbol_table.hpp>
 #include <sequence.hpp>
@@ -13,7 +14,7 @@ namespace eel::visitors {
     struct CodegenVisitor : eelBaseVisitor {
 
         SymbolTable& table;
-        FILE* stream;
+        std::iostream* stream;
 
         Scope current_scope;
         Sequence* current_sequence = nullptr;
@@ -22,7 +23,7 @@ namespace eel::visitors {
 
         std::vector<symbols::Event*> events;
 
-        CodegenVisitor(SymbolTable& table, FILE* stream);
+        CodegenVisitor(SymbolTable& table, std::iostream* stream);
 
         any visitProgram(eelParser::ProgramContext *ctx) override;
 
@@ -35,6 +36,7 @@ namespace eel::visitors {
 
         // Expressions - Access/assign
         any visitIdentifier(eelParser::IdentifierContext *ctx) override;
+        any visitFnCallExpr(eelParser::FnCallExprContext *ctx) override;
         any visitAssignExpr(eelParser::AssignExprContext *ctx) override;
         any visitReadPinExpr(eelParser::ReadPinExprContext *ctx) override;
 
@@ -47,7 +49,19 @@ namespace eel::visitors {
         // Expressions - Logical/comparative operators
 
         any visitComparisonExpr(eelParser::ComparisonExprContext *ctx) override;
+        any visitLAndExpr(eelParser::LAndExprContext *ctx) override;
+        any visitLOrExpr(eelParser::LOrExprContext *ctx) override;
         any visitNot(eelParser::NotContext *ctx) override;
+
+        // Expressions - Bitwise operators
+        any visitOrExpr(eelParser::OrExprContext *ctx) override;
+        any visitAndExpr(eelParser::AndExprContext *ctx) override;
+        any visitXorExpr(eelParser::XorExprContext *ctx) override;
+        any visitBitComp(eelParser::BitCompContext *ctx) override;
+        any visitShiftingExpr(eelParser::ShiftingExprContext *ctx) override;
+
+        // Expressions other
+        any visitCastExpr(eelParser::CastExprContext *ctx) override;
 
         // Declarations
         any visitVariableDecl(eelParser::VariableDeclContext* ctx) override;
@@ -63,6 +77,14 @@ namespace eel::visitors {
         any visitAwaitStmt(eelParser::AwaitStmtContext* ctx) override;
         any visitReturnStmt(eelParser::ReturnStmtContext *ctx) override;
         any visitIfStmt(eelParser::IfStmtContext *ctx) override;
+        any visitWhileStmt(eelParser::WhileStmtContext *ctx) override;
+        any visitBreakStmt(eelParser::BreakStmtContext *ctx) override;
+        any visitContinueStmt(eelParser::ContinueStmtContext *ctx) override;
+
+        // Stmts - pins
+        any visitSetPinValueStmt(eelParser::SetPinValueStmtContext *ctx) override;
+        any visitSetPinModeStmt(eelParser::SetPinModeStmtContext *ctx) override;
+        any visitSetPinNumberStmt(eelParser::SetPinNumberStmtContext *ctx) override;
 
     };
 }

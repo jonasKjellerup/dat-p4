@@ -5,9 +5,9 @@
 #include <error.hpp>
 #include <sequence.hpp>
 
-#include <functional>
 #include <unordered_set>
 #include <fmt/core.h>
+#include <fmt/ostream.h>
 
 using namespace eel;
 using namespace eel::visitors;
@@ -25,7 +25,7 @@ const char* kind_labels[] = {
 /// \param invoke_generator A function that is responsible for calling
 ///                         the necessary functions for generating the invoke body.
 static void generate_sync_functor_type(
-        FILE* stream,
+        std::iostream* stream,
         const symbols::Function &function,
         CodegenVisitor &visitor
 );
@@ -36,7 +36,7 @@ static void generate_sync_functor_type(
 /// \param step_generator A function that is responsible for calling
 ///                         the necessary functions for generating the step body.
 static void generate_async_functor_type(
-        FILE* stream,
+        std::iostream* stream,
         const symbols::Function &function,
         CodegenVisitor &visitor
 );
@@ -54,7 +54,7 @@ static void check_symbol(Symbol symbol, Symbol_::Kind expected_kind, const std::
 static void resolve(Symbol &symbol, SymbolTable &table);
 
 
-CodegenVisitor::CodegenVisitor(eel::SymbolTable &table, FILE* stream)
+CodegenVisitor::CodegenVisitor(eel::SymbolTable &table, std::iostream* stream)
         : table(table), stream(stream) {
     current_scope = table.root_scope;
 }
@@ -62,10 +62,10 @@ CodegenVisitor::CodegenVisitor(eel::SymbolTable &table, FILE* stream)
 any CodegenVisitor::visitProgram(eelParser::ProgramContext* ctx) {
     static const char* setup_state_id = "__setup_state";
     static const char* loop_state_id = "__loop_state";
-    fmt::print(stream, "#include <runtime/all.hpp>\n");
+    fmt::print(*stream, "#include <runtime/all.hpp>\n");
     visitChildren(ctx);
 
-    fmt::print(stream, "\nint main(void) {{\n");
+    fmt::print(*stream, "\nint main(void) {{\n");
 
     // This can break if the user has defined another symbol
     // using the predetermined names. We just assume that if
@@ -74,19 +74,19 @@ any CodegenVisitor::visitProgram(eelParser::ProgramContext* ctx) {
     if (!setup.is_nullptr()) {
         auto f = setup->value.function;
         if (f->is_async()) {
-            fmt::print(stream, "{setup_type}::State {setup_state} {{}};\n"
-                               "while (!{setup_type}::step({setup_state})) {{\n",
+            fmt::print(*stream, "{setup_type}::State {setup_state} {{}};\n"
+                                "while (!{setup_type}::step({setup_state})) {{\n",
                        fmt::arg("setup_type", f->type_id),
                        fmt::arg("setup_state", setup_state_id));
 
             for (auto event: events) {
-                fmt::print(stream, "run_handles<decltype({event_id}})>({event_id}});\n",
+                fmt::print(*stream, "run_handles<decltype({event_id}})>({event_id}});\n",
                            fmt::arg("event_id", event->id));
             }
 
-            fmt::print(stream, "}}\n");
+            fmt::print(*stream, "}}\n");
         } else {
-            fmt::print(stream, "{}::invoke();\n", f->type_id);
+            fmt::print(*stream, "{}::invoke();\n", f->type_id);
         }
     }
 
@@ -95,32 +95,32 @@ any CodegenVisitor::visitProgram(eelParser::ProgramContext* ctx) {
     if (!loop.is_nullptr()) {
         auto f = loop->value.function;
         if (f->is_async()) {
-            fmt::print(stream, "{}::State {} {{}};\n",
+            fmt::print(*stream, "{}::State {} {{}};\n",
                        f->type_id, loop_state_id);
         }
     }
 
-    fmt::print(stream, "while (true) {{\n");
+    fmt::print(*stream, "while (true) {{\n");
 
     for (auto event: events) {
-        fmt::print(stream, "run_handles<decltype({event_id})>({event_id});\n",
+        fmt::print(*stream, "run_handles<decltype({event_id})>({event_id});\n",
                    fmt::arg("event_id", event->id));
     }
 
     if (!loop.is_nullptr()) {
         auto f = loop->value.function;
         if (f->is_async()) {
-            fmt::print(stream, "if ({loop_type}::step({loop_state})) {loop_state}.s = 0;\n",
+            fmt::print(*stream, "if ({loop_type}::step({loop_state})) {loop_state}.s = 0;\n",
                        fmt::arg("loop_type", f->type_id),
                        fmt::arg("loop_state", loop_state_id));
         } else {
-            fmt::print(stream, "{}::invoke();\n", f->type_id);
+            fmt::print(*stream, "{}::invoke();\n", f->type_id);
         }
     }
 
-    fmt::print(stream, "}}\n");
+    fmt::print(*stream, "}}\n");
 
-    fmt::print(stream, "return 0; }}\n");
+    fmt::print(*stream, "return 0; }}\n");
     return {};
 }
 
@@ -219,8 +219,58 @@ any CodegenVisitor::visitComparisonExpr(eelParser::ComparisonExprContext* ctx) {
                        std::any_cast<std::string>(visit(ctx->right)));
 }
 
+any CodegenVisitor::visitLAndExpr(eelParser::LAndExprContext* ctx) {
+    return fmt::format("({})&&({})",
+                       std::any_cast<std::string>(visit(ctx->left)),
+                       std::any_cast<std::string>(visit(ctx->right)));
+}
+
+any CodegenVisitor::visitLOrExpr(eelParser::LOrExprContext* ctx) {
+    return fmt::format("({})||({})",
+                       std::any_cast<std::string>(visit(ctx->left)),
+                       std::any_cast<std::string>(visit(ctx->right)));
+}
+
 any CodegenVisitor::visitNot(eelParser::NotContext* ctx) {
     return fmt::format("!({})", std::any_cast<std::string>(visit(ctx->expr())));
+}
+
+/*
+ * Bitwise operators
+ */
+
+any CodegenVisitor::visitAndExpr(eelParser::AndExprContext* ctx) {
+    return fmt::format("({})&({})",
+                       std::any_cast<std::string>(visit(ctx->left)),
+                       std::any_cast<std::string>(visit(ctx->right)));
+}
+
+any CodegenVisitor::visitOrExpr(eelParser::OrExprContext* ctx) {
+    return fmt::format("({})|({})",
+                       std::any_cast<std::string>(visit(ctx->left)),
+                       std::any_cast<std::string>(visit(ctx->right)));
+}
+
+any CodegenVisitor::visitXorExpr(eelParser::XorExprContext* ctx) {
+    return fmt::format("({})^({})",
+                       std::any_cast<std::string>(visit(ctx->left)),
+                       std::any_cast<std::string>(visit(ctx->right)));
+}
+
+any CodegenVisitor::visitBitComp(eelParser::BitCompContext* ctx) {
+    return fmt::format("~({})", std::any_cast<std::string>(visit(ctx->expr())));
+}
+
+/*
+ * Other expressions
+ */
+
+any CodegenVisitor::visitCastExpr(eelParser::CastExprContext* ctx) {
+    auto type_symbol = current_scope->find(ctx->type()->getText());
+
+    return fmt::format("static_cast<{}>({})",
+                       type_symbol->value.type->type_target_name(),
+                       std::any_cast<std::string>(visit(ctx->expr())));
 }
 
 /*
@@ -237,17 +287,17 @@ any CodegenVisitor::visitVariableDecl(eelParser::VariableDeclContext* ctx) {
 
     if (current_sequence == nullptr || current_sequence->current_point->kind == SequencePoint::SyncPoint) {
         if (variable->has_value) {
-            fmt::print(stream, "{} {} = {};",
+            fmt::print(*stream, "{} {} = {};",
                        type->value.type->type_target_name(),
                        generate_variable_id(symbol),
                        std::any_cast<std::string>(visit(ctx->expr())));
         } else {
-            fmt::print(stream, "{} {};",
+            fmt::print(*stream, "{} {};",
                        type->value.type->type_target_name(),
                        generate_variable_id(symbol));
         }
     } else if (variable->has_value) {
-        fmt::print(stream, "state.{} = {};",
+        fmt::print(*stream, "state.{} = {};",
                    generate_variable_id(symbol),
                    std::any_cast<std::string>(visit(ctx->expr())));
     }
@@ -295,7 +345,7 @@ any CodegenVisitor::visitPinDecl(eelParser::PinDeclContext* ctx) {
 
     auto pin_id = std::any_cast<std::string>(visitChildren(ctx->expr()));
 
-    fmt::print(stream,
+    fmt::print(*stream,
                "{} {} {{ {} }};",
                type_v->type_target_name(),
                generate_variable_id(symbol),
@@ -349,12 +399,12 @@ any CodegenVisitor::visitEventDecl(eelParser::EventDeclContext* ctx) {
     }
 
     // Generate the event field
-    fmt::print(stream, "Event<{}", predicate_type);
+    fmt::print(*stream, "Event<{}", predicate_type);
     for (auto &handle: handles) {
-        fmt::print(stream, ", {}", handle.second.type_id);
+        fmt::print(*stream, ", {}", handle.second.type_id);
     }
 
-    fmt::print(stream, "> {} {{}};\n", event->id);
+    fmt::print(*stream, "> {} {{}};\n", event->id);
 
     return {};
 }
@@ -371,7 +421,7 @@ any CodegenVisitor::visitOnDecl(eelParser::OnDeclContext*) {
 any CodegenVisitor::visitStmt(eelParser::StmtContext* ctx) {
     if (ctx->expr() != nullptr) {
         auto expr_result = std::any_cast<std::string>(visit(ctx->expr()));
-        fmt::print(stream, "{};", expr_result);
+        fmt::print(*stream, "{};", expr_result);
     } else {
         visitChildren(ctx);
     }
@@ -387,11 +437,11 @@ any CodegenVisitor::visitStmtBlock(eelParser::StmtBlockContext* ctx) {
 
     if (sequence_point->kind == SequencePoint::AsyncPoint) {
         close_open_async_case(*this);
-        fmt::print(stream, "case {}:", async_state_counter++);
+        fmt::print(*stream, "case {}:", async_state_counter++);
         is_in_async_state_case = true;
     }
 
-    fmt::print(stream, "{{");
+    fmt::print(*stream, "{{");
     visitChildren(ctx);
 
     if (sequence_point->kind == SequencePoint::AsyncPoint) {
@@ -429,8 +479,8 @@ any CodegenVisitor::visitAwaitStmt(eelParser::AwaitStmtContext* ctx) {
 
     close_open_async_case(*this);
 
-    fmt::print(stream, "case {}: {{"
-                       "if ({}) state.s += 1;return 0;}}",
+    fmt::print(*stream, "case {}: {{"
+                        "if ({}) state.s += 1;return 0;}}",
                async_state_counter++,
                predicate);
 
@@ -442,14 +492,14 @@ any CodegenVisitor::visitReturnStmt(eelParser::ReturnStmtContext* ctx) {
     if (ctx->expr() != nullptr) {
         auto value = std::any_cast<std::string>(visit(ctx->expr()));
         if (is_async_return) {
-            fmt::print(stream, "state.r = {};return 1;", value);
+            fmt::print(*stream, "state.r = {};return 1;", value);
         } else {
-            fmt::print(stream, "return {};", value);
+            fmt::print(*stream, "return {};", value);
         }
     } else if (is_async_return) {
-        fmt::print(stream, "return 1;");
+        fmt::print(*stream, "return 1;");
     } else {
-        fmt::print(stream, "return;");
+        fmt::print(*stream, "return;");
     }
 
     return {};
@@ -458,22 +508,23 @@ any CodegenVisitor::visitReturnStmt(eelParser::ReturnStmtContext* ctx) {
 any CodegenVisitor::visitIfStmt(eelParser::IfStmtContext* ctx) {
     auto const stmt = ctx->stmt();
     auto const else_stmt = ctx->elseStmt() != nullptr ? ctx->elseStmt()->stmt() : nullptr;
+    auto const if_cond = std::any_cast<std::string>(visit(ctx->conditionBlock()->expr()));
 
-    auto sequence_snapshot = current_sequence->snapshot();
-    bool is_if_async = false,
-         is_else_async;
+    auto const sequence_snapshot = current_sequence->snapshot();
+    bool if_is_async = false,
+            else_is_async;
 
     current_sequence->next();
 
     if (stmt->awaitStmt() != nullptr || stmt->stmtBlock() != nullptr) {
-        is_if_async = current_sequence->current_point->is_async();
+        if_is_async = current_sequence->current_point->is_async();
         // Set current point as adjacent point.
         // Assuming the presence of a sequence point for a block or yield in
         // an else statement it would be adjacent to the current point
         current_sequence->current_point = current_sequence->current_point->next;
     }
 
-    is_else_async =
+    else_is_async =
             // If the else branch is present
             else_stmt != nullptr
             // and if it is an await statement or a stmt block
@@ -481,21 +532,143 @@ any CodegenVisitor::visitIfStmt(eelParser::IfStmtContext* ctx) {
             // and the current sequence point is marked async
             && current_sequence->current_point->is_async();
 
-    if (!(is_if_async | is_else_async)) {
-        fmt::print(stream, "if ({})", std::any_cast<std::string>(visit(ctx->conditionBlock()->expr())));
+    current_sequence->restore(sequence_snapshot);
+
+    if (!is_in_async_state_case) {
+        fmt::print(*stream, "case {}: {{", async_state_counter++);
+        is_in_async_state_case = true;
+    }
+
+    fmt::print(*stream, "if ({})", if_cond);
+    // If all branches are non-async
+    if (!(if_is_async | else_is_async)) {
         visit(stmt);
 
         if (else_stmt != nullptr) {
-            fmt::print(stream, "else ");
+            fmt::print(*stream, "else ");
             visit(else_stmt);
         }
     } else {
-        // TODO generate code for async branches
-        throw InternalError(InternalError::Codegen, "Async if/else block are currently unsupported");
+        auto original_stream = stream;
+        is_in_async_state_case = false;
+
+        // Create output buffer
+        std::stringstream if_buffer;
+
+        if (if_is_async) {
+            fmt::print(*stream, "{{ state.s = {}; return 0; }}", async_state_counter);
+            stream = &if_buffer;
+        }
+
+        visit(stmt);
+        stream = original_stream;
+
+        auto if_case_is_closed = !is_in_async_state_case;
+        auto if_redirection_case = if_case_is_closed ? async_state_counter++ : 0;
+        is_in_async_state_case = false;
+
+        std::stringstream else_buffer;
+        if (else_stmt != nullptr) {
+            fmt::print(*stream, "else ");
+            if (else_is_async) {
+                fmt::print(*stream, "{{ state.s = {}; return 0; }}", async_state_counter);
+                stream = &else_buffer;
+            }
+
+            visit(else_stmt);
+            stream = original_stream;
+        }
+
+        // Proceed to the case after the if/else statement
+        // This is dead-code if both branches are async,
+        // but we let the c++ compiler deal with that
+        fmt::print(*stream, "state.s = {}; return 0; }}", async_state_counter);
+
+        fmt::print(*stream, if_buffer.str());
+
+        if (if_is_async) {
+            // If the if-case is closed then create a new
+            // case for redirecting
+            if (if_case_is_closed) {
+                fmt::print(*stream, "case {}: {{", if_redirection_case);
+            }
+
+            // Code for going from end of if to the case proceeding the last case
+            // of the if else chain
+            fmt::print(*stream, "state.s = {}; return 0;}}", async_state_counter);
+        }
+
+        // write else code and close case if open
+        if (else_stmt != nullptr) {
+            fmt::print(*stream, else_buffer.str());
+            close_open_async_case(*this);
+        }
+
+        fmt::print(*stream, "case {}: {{", async_state_counter++);
+        is_in_async_state_case = true;
     }
 
 
+    return {};
+}
 
+any CodegenVisitor::visitWhileStmt(eelParser::WhileStmtContext* ctx) {
+    /*
+     * else_is_async =
+            // If the else branch is present
+            else_stmt != nullptr
+            // and if it is an await statement or a stmt block
+            && (else_stmt->awaitStmt() != nullptr || else_stmt->stmtBlock() != nullptr)
+            // and the current sequence point is marked async
+            && current_sequence->current_point->is_async();
+     */
+
+    auto const stmt = ctx->stmtBlock();
+    auto seq = current_sequence->next();
+
+    if (seq->is_async()) {}
+    else {
+    }
+
+
+    return {}; // TODO
+}
+
+any CodegenVisitor::visitBreakStmt(eelParser::BreakStmtContext* ctx) {
+    fmt::print(*stream, "break;");
+    return {};
+}
+
+any CodegenVisitor::visitContinueStmt(eelParser::ContinueStmtContext* ctx) {
+    fmt::print(*stream, "continue;");
+    return {};
+}
+
+/*
+ * Pin statements
+ */
+
+any CodegenVisitor::visitSetPinValueStmt(eelParser::SetPinValueStmtContext* ctx) {
+    auto pin_name = std::any_cast<std::string>(visit(ctx->fqn()));
+    auto value = std::any_cast<std::string>(visit(ctx->expr()));
+
+    fmt::print(*stream, "{}.write({});", pin_name, value);
+    return {};
+}
+
+any CodegenVisitor::visitSetPinModeStmt(eelParser::SetPinModeStmtContext* ctx) {
+    auto pin_name = std::any_cast<std::string>(visit(ctx->fqn()));
+    auto value = std::any_cast<std::string>(visit(ctx->expr()));
+
+    fmt::print(*stream, "{}.set_mode({});", pin_name, value);
+    return {};
+}
+
+any CodegenVisitor::visitSetPinNumberStmt(eelParser::SetPinNumberStmtContext* ctx) {
+    auto pin_name = std::any_cast<std::string>(visit(ctx->fqn()));
+    auto value = std::any_cast<std::string>(visit(ctx->expr()));
+
+    fmt::print(*stream, "{}.pin_id = {};", pin_name, value);
     return {};
 }
 
@@ -516,7 +689,7 @@ static void generate_functor_core(const symbols::Function &function,
 }
 
 void generate_sync_functor_type(
-        FILE* stream,
+        std::iostream* stream,
         const symbols::Function &function,
         CodegenVisitor &visitor
 ) {
@@ -525,23 +698,23 @@ void generate_sync_functor_type(
         return_type_name = function.return_type->value.type->type_target_name().c_str();
     }
 
-    fmt::print(stream,
+    fmt::print(*stream,
                "struct {} {{ static {} invoke() {{",
                function.type_id,
                return_type_name);
     generate_functor_core(function, visitor);
-    fmt::print(stream, "}} }};");
+    fmt::print(*stream, "}} }};");
 }
 
 void generate_async_functor_type(
-        FILE* stream,
+        std::iostream* stream,
         const symbols::Function &function,
         CodegenVisitor &visitor
 ) {
     visitor.async_state_counter = 0;
     visitor.is_in_async_state_case = false;
 
-    fmt::print(stream,
+    fmt::print(*stream,
                "struct {} : AsyncFunction {{"
                "struct State {{"
                "u8 s;",
@@ -549,7 +722,7 @@ void generate_async_functor_type(
 
     if (function.has_return_type) {
         auto return_type = function.return_type->value.type;
-        fmt::print(stream, "{} r;", return_type->type_target_name());
+        fmt::print(*stream, "{} r;", return_type->type_target_name());
     }
 
     auto seq = function.sequence;
@@ -561,7 +734,7 @@ void generate_async_functor_type(
                 if (symbol->kind != Symbol_::Kind::Variable)
                     continue;
 
-                fmt::print(stream, "{} {};\n",
+                fmt::print(*stream, "{} {};\n",
                            symbol->value.type->type_target_name(),
                            generate_variable_id(symbol));
             }
@@ -573,37 +746,37 @@ void generate_async_functor_type(
         }
     }
 
-    fmt::print(stream, "}};" // End of State struct decl
-                       "static int step(State&);" // Forward declare step
-                       "static int begin_invoke(State& state"); // Start of begin_invoke param list
+    fmt::print(*stream, "}};" // End of State struct decl
+                        "static int step(State&);" // Forward declare step
+                        "static int begin_invoke(State& state"); // Start of begin_invoke param list
 
     for (auto param: function.parameters) {
         auto var = param->value.variable;
-        fmt::print(stream, ", {}& {}",
+        fmt::print(*stream, ", {}& {}",
                    var->type->value.type->type_target_name(),
                    generate_variable_id(param));
     }
 
-    fmt::print(stream, ") {{ state.s = 0;"); // End of begin_invoke param list + start of body
+    fmt::print(*stream, ") {{ state.s = 0;"); // End of begin_invoke param list + start of body
 
     for (auto param: function.parameters) {
         auto name = generate_variable_id(param);
-        fmt::print(stream, "state.{} = {};", name, name);
+        fmt::print(*stream, "state.{} = {};", name, name);
     }
 
-    fmt::print(stream, "return step(state);}}\n"
-                       "static int step(State& state) {{"
-                       "switch (state.s) {{");
+    fmt::print(*stream, "return step(state);}}\n"
+                        "static int step(State& state) {{"
+                        "switch (state.s) {{");
 
     generate_functor_core(function, visitor);
 
-    fmt::print(stream, "}} }} }};"); // End of step body and functor struct
+    fmt::print(*stream, "}} }} }};"); // End of step body and functor struct
 
 }
 
 void close_open_async_case(CodegenVisitor &visitor) {
     if (visitor.is_in_async_state_case) {
-        fmt::print(visitor.stream, "state.s += 1; return 0; }}");
+        fmt::print(*visitor.stream, "state.s += 1; return 0; }}");
         visitor.is_in_async_state_case = false;
     }
 }
