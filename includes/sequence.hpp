@@ -55,6 +55,7 @@ namespace eel {
         void restore(const std::tuple<SequencePoint*, Block*>& snapshot);
 
         bool is_next_async();
+        bool is_next_yield();
 
     };
 }

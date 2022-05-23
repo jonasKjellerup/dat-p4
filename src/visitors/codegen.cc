@@ -13,7 +13,7 @@ using namespace eel;
 using namespace eel::visitors;
 using std::any;
 
-const char* kind_labels[] = {
+const char *kind_labels[] = {
         "None", "Variable", "Constant",
         "Function", "Type", "Namespace",
         "Event", "Indirect"
@@ -25,7 +25,7 @@ const char* kind_labels[] = {
 /// \param invoke_generator A function that is responsible for calling
 ///                         the necessary functions for generating the invoke body.
 static void generate_sync_functor_type(
-        std::iostream* stream,
+        std::iostream *stream,
         const symbols::Function &function,
         CodegenVisitor &visitor
 );
@@ -36,7 +36,7 @@ static void generate_sync_functor_type(
 /// \param step_generator A function that is responsible for calling
 ///                         the necessary functions for generating the step body.
 static void generate_async_functor_type(
-        std::iostream* stream,
+        std::iostream *stream,
         const symbols::Function &function,
         CodegenVisitor &visitor
 );
@@ -54,14 +54,14 @@ static void check_symbol(Symbol symbol, Symbol_::Kind expected_kind, const std::
 static void resolve(Symbol &symbol, SymbolTable &table);
 
 
-CodegenVisitor::CodegenVisitor(eel::SymbolTable &table, std::iostream* stream)
+CodegenVisitor::CodegenVisitor(eel::SymbolTable &table, std::iostream *stream)
         : table(table), stream(stream) {
     current_scope = table.root_scope;
 }
 
-any CodegenVisitor::visitProgram(eelParser::ProgramContext* ctx) {
-    static const char* setup_state_id = "__setup_state";
-    static const char* loop_state_id = "__loop_state";
+any CodegenVisitor::visitProgram(eelParser::ProgramContext *ctx) {
+    static const char *setup_state_id = "__setup_state";
+    static const char *loop_state_id = "__loop_state";
     fmt::print(*stream, "#include <runtime/all.hpp>\n");
     visitChildren(ctx);
 
@@ -132,26 +132,26 @@ any CodegenVisitor::visitProgram(eelParser::ProgramContext* ctx) {
 /*
  * Literal expressions
  */
-any CodegenVisitor::visitBoolLiteral(eelParser::BoolLiteralContext* ctx) {
+any CodegenVisitor::visitBoolLiteral(eelParser::BoolLiteralContext *ctx) {
     // our boolean literals are a 1:1 match with c++ literals
     return ctx->BoolLiteral()->getText();
 }
 
-any CodegenVisitor::visitCharLiteral(eelParser::CharLiteralContext* ctx) {
+any CodegenVisitor::visitCharLiteral(eelParser::CharLiteralContext *ctx) {
     return ctx->getText(); // TODO our character literals are not a 1:1 with c++
 }
 
-any CodegenVisitor::visitFloatLiteral(eelParser::FloatLiteralContext* ctx) {
+any CodegenVisitor::visitFloatLiteral(eelParser::FloatLiteralContext *ctx) {
     // TODO the syntax should be mostly compatible, but this should be double checked
     return ctx->FloatLiteral()->getText();
 }
 
-any CodegenVisitor::visitIntegerLiteral(eelParser::IntegerLiteralContext* ctx) {
+any CodegenVisitor::visitIntegerLiteral(eelParser::IntegerLiteralContext *ctx) {
     // TODO the syntax should be mostly compatible, but this should be double checked
     return ctx->IntegerLiteral()->getText();
 }
 
-any CodegenVisitor::visitStringLiteral(eelParser::StringLiteralContext* ctx) {
+any CodegenVisitor::visitStringLiteral(eelParser::StringLiteralContext *ctx) {
     return ctx->getText(); // TODO our strings/characters are not a 1:1 with c++
 }
 
@@ -160,7 +160,7 @@ any CodegenVisitor::visitStringLiteral(eelParser::StringLiteralContext* ctx) {
  */
 
 // TODO make this visitFqn at some point if we wanna implement member/namespace access
-any CodegenVisitor::visitIdentifier(eelParser::IdentifierContext* ctx) {
+any CodegenVisitor::visitIdentifier(eelParser::IdentifierContext *ctx) {
     auto identifier = ctx->Identifier()->getText();
     auto symbol = current_scope->find(identifier);
 
@@ -170,14 +170,14 @@ any CodegenVisitor::visitIdentifier(eelParser::IdentifierContext* ctx) {
     return generate_variable_id(symbol); // TODO this should account for async context
 }
 
-any CodegenVisitor::visitAssignExpr(eelParser::AssignExprContext* ctx) {
+any CodegenVisitor::visitAssignExpr(eelParser::AssignExprContext *ctx) {
     auto lop = std::any_cast<std::string>(visit(ctx->var));
     auto rop = std::any_cast<std::string>(visit(ctx->right));
 
     return fmt::format("{} = {}", lop, rop);
 }
 
-any CodegenVisitor::visitReadPinExpr(eelParser::ReadPinExprContext* ctx) {
+any CodegenVisitor::visitReadPinExpr(eelParser::ReadPinExprContext *ctx) {
     auto identifier = std::any_cast<std::string>(ctx->fqn());
     return fmt::format("{}.read()", identifier);
 }
@@ -186,22 +186,22 @@ any CodegenVisitor::visitReadPinExpr(eelParser::ReadPinExprContext* ctx) {
  * Arithmetic operators
  */
 
-any CodegenVisitor::visitPos(eelParser::PosContext* ctx) {
+any CodegenVisitor::visitPos(eelParser::PosContext *ctx) {
     return visit(ctx->expr());
 }
 
-any CodegenVisitor::visitNeg(eelParser::NegContext* ctx) {
+any CodegenVisitor::visitNeg(eelParser::NegContext *ctx) {
     return fmt::format("-({})", std::any_cast<std::string>(visit(ctx->expr())));
 }
 
-any CodegenVisitor::visitScalingExpr(eelParser::ScalingExprContext* ctx) {
+any CodegenVisitor::visitScalingExpr(eelParser::ScalingExprContext *ctx) {
     return fmt::format("({}){}({})",
                        std::any_cast<std::string>(visit(ctx->left)),
                        ctx->op->getText(),
                        std::any_cast<std::string>(visit(ctx->right)));
 }
 
-any CodegenVisitor::visitAdditiveExpr(eelParser::AdditiveExprContext* ctx) {
+any CodegenVisitor::visitAdditiveExpr(eelParser::AdditiveExprContext *ctx) {
     return fmt::format("({}){}({})",
                        std::any_cast<std::string>(visit(ctx->left)),
                        ctx->op->getText(),
@@ -212,26 +212,26 @@ any CodegenVisitor::visitAdditiveExpr(eelParser::AdditiveExprContext* ctx) {
  * Logical/comparative operators
  */
 
-any CodegenVisitor::visitComparisonExpr(eelParser::ComparisonExprContext* ctx) {
+any CodegenVisitor::visitComparisonExpr(eelParser::ComparisonExprContext *ctx) {
     return fmt::format("({}){}({})",
                        std::any_cast<std::string>(visit(ctx->left)),
                        ctx->op->getText(),
                        std::any_cast<std::string>(visit(ctx->right)));
 }
 
-any CodegenVisitor::visitLAndExpr(eelParser::LAndExprContext* ctx) {
+any CodegenVisitor::visitLAndExpr(eelParser::LAndExprContext *ctx) {
     return fmt::format("({})&&({})",
                        std::any_cast<std::string>(visit(ctx->left)),
                        std::any_cast<std::string>(visit(ctx->right)));
 }
 
-any CodegenVisitor::visitLOrExpr(eelParser::LOrExprContext* ctx) {
+any CodegenVisitor::visitLOrExpr(eelParser::LOrExprContext *ctx) {
     return fmt::format("({})||({})",
                        std::any_cast<std::string>(visit(ctx->left)),
                        std::any_cast<std::string>(visit(ctx->right)));
 }
 
-any CodegenVisitor::visitNot(eelParser::NotContext* ctx) {
+any CodegenVisitor::visitNot(eelParser::NotContext *ctx) {
     return fmt::format("!({})", std::any_cast<std::string>(visit(ctx->expr())));
 }
 
@@ -239,25 +239,25 @@ any CodegenVisitor::visitNot(eelParser::NotContext* ctx) {
  * Bitwise operators
  */
 
-any CodegenVisitor::visitAndExpr(eelParser::AndExprContext* ctx) {
+any CodegenVisitor::visitAndExpr(eelParser::AndExprContext *ctx) {
     return fmt::format("({})&({})",
                        std::any_cast<std::string>(visit(ctx->left)),
                        std::any_cast<std::string>(visit(ctx->right)));
 }
 
-any CodegenVisitor::visitOrExpr(eelParser::OrExprContext* ctx) {
+any CodegenVisitor::visitOrExpr(eelParser::OrExprContext *ctx) {
     return fmt::format("({})|({})",
                        std::any_cast<std::string>(visit(ctx->left)),
                        std::any_cast<std::string>(visit(ctx->right)));
 }
 
-any CodegenVisitor::visitXorExpr(eelParser::XorExprContext* ctx) {
+any CodegenVisitor::visitXorExpr(eelParser::XorExprContext *ctx) {
     return fmt::format("({})^({})",
                        std::any_cast<std::string>(visit(ctx->left)),
                        std::any_cast<std::string>(visit(ctx->right)));
 }
 
-any CodegenVisitor::visitBitComp(eelParser::BitCompContext* ctx) {
+any CodegenVisitor::visitBitComp(eelParser::BitCompContext *ctx) {
     return fmt::format("~({})", std::any_cast<std::string>(visit(ctx->expr())));
 }
 
@@ -265,7 +265,7 @@ any CodegenVisitor::visitBitComp(eelParser::BitCompContext* ctx) {
  * Other expressions
  */
 
-any CodegenVisitor::visitCastExpr(eelParser::CastExprContext* ctx) {
+any CodegenVisitor::visitCastExpr(eelParser::CastExprContext *ctx) {
     auto type_symbol = current_scope->find(ctx->type()->getText());
 
     return fmt::format("static_cast<{}>({})",
@@ -277,7 +277,7 @@ any CodegenVisitor::visitCastExpr(eelParser::CastExprContext* ctx) {
  * Declarations
  */
 
-any CodegenVisitor::visitVariableDecl(eelParser::VariableDeclContext* ctx) {
+any CodegenVisitor::visitVariableDecl(eelParser::VariableDeclContext *ctx) {
     auto identifier = ctx->typedIdentifier()->Identifier()->getText();
     auto symbol = current_scope->find(identifier);
 
@@ -305,7 +305,7 @@ any CodegenVisitor::visitVariableDecl(eelParser::VariableDeclContext* ctx) {
     return {};
 }
 
-any CodegenVisitor::visitSetupDecl(eelParser::SetupDeclContext*) {
+any CodegenVisitor::visitSetupDecl(eelParser::SetupDeclContext *) {
     auto symbol = current_scope->find("__eel_setup");
     auto func = symbol->value.function;
 
@@ -318,7 +318,7 @@ any CodegenVisitor::visitSetupDecl(eelParser::SetupDeclContext*) {
     return {};
 }
 
-any CodegenVisitor::visitLoopDecl(eelParser::LoopDeclContext*) {
+any CodegenVisitor::visitLoopDecl(eelParser::LoopDeclContext *) {
     auto symbol = current_scope->find("__eel_loop");
     auto func = symbol->value.function;
 
@@ -331,7 +331,7 @@ any CodegenVisitor::visitLoopDecl(eelParser::LoopDeclContext*) {
     return {};
 }
 
-any CodegenVisitor::visitPinDecl(eelParser::PinDeclContext* ctx) {
+any CodegenVisitor::visitPinDecl(eelParser::PinDeclContext *ctx) {
     // TODO figure out if we need to translate analog pin ids
     auto identifier = ctx->Identifier()->getText();
     auto symbol = current_scope->find(identifier);
@@ -355,7 +355,7 @@ any CodegenVisitor::visitPinDecl(eelParser::PinDeclContext* ctx) {
     return {};
 }
 
-any CodegenVisitor::visitEventDecl(eelParser::EventDeclContext* ctx) {
+any CodegenVisitor::visitEventDecl(eelParser::EventDeclContext *ctx) {
     auto symbol = table.root_scope->find(ctx->Identifier()->getText());
     if (symbol->kind != Symbol_::Kind::Event)
         throw InternalError(InternalError::Codegen, "Invalid symbol. Expected event.");
@@ -409,7 +409,7 @@ any CodegenVisitor::visitEventDecl(eelParser::EventDeclContext* ctx) {
     return {};
 }
 
-any CodegenVisitor::visitOnDecl(eelParser::OnDeclContext*) {
+any CodegenVisitor::visitOnDecl(eelParser::OnDeclContext *) {
     // the event handler code is generated by the event declaration visitor
     return {};
 }
@@ -418,7 +418,12 @@ any CodegenVisitor::visitOnDecl(eelParser::OnDeclContext*) {
  * Statements
  */
 
-any CodegenVisitor::visitStmt(eelParser::StmtContext* ctx) {
+any CodegenVisitor::visitStmt(eelParser::StmtContext *ctx) {
+    if (current_sequence->current_block->is_async() && !current_sequence->is_next_yield() && !is_in_async_state_case) {
+        fmt::print(*stream, "case {}: {{", async_state_counter++);
+        is_in_async_state_case = true;
+    }
+
     if (ctx->expr() != nullptr) {
         auto expr_result = std::any_cast<std::string>(visit(ctx->expr()));
         fmt::print(*stream, "{};", expr_result);
@@ -429,8 +434,8 @@ any CodegenVisitor::visitStmt(eelParser::StmtContext* ctx) {
     return {};
 }
 
-any CodegenVisitor::visitStmtBlock(eelParser::StmtBlockContext* ctx) {
-    auto sequence_point = dynamic_cast<Block*>(current_sequence->next());
+any CodegenVisitor::visitStmtBlock(eelParser::StmtBlockContext *ctx) {
+    auto sequence_point = dynamic_cast<Block *>(current_sequence->next());
 
     if (sequence_point == nullptr)
         throw InternalError(InternalError::Codegen, "Out of sync sequence point. Block object expected.");
@@ -453,16 +458,16 @@ any CodegenVisitor::visitStmtBlock(eelParser::StmtBlockContext* ctx) {
     return {};
 }
 
-any CodegenVisitor::visitAwaitStmt(eelParser::AwaitStmtContext* ctx) {
+any CodegenVisitor::visitAwaitStmt(eelParser::AwaitStmtContext *ctx) {
     auto sequence_point = current_sequence->next();
 
-    if (sequence_point == nullptr || sequence_point->kind == SequencePoint::YieldPoint)
+    if (sequence_point == nullptr || sequence_point->kind != SequencePoint::YieldPoint)
         throw InternalError(InternalError::Codegen, "Out of sync sequence point. YieldPoint expected.");
 
-    auto fqn = dynamic_cast<eelParser::FqnExprContext*>(ctx->expr()->children[0]);
+    auto fqn = dynamic_cast<eelParser::FqnExprContext *>(ctx->expr()->children[0]);
     std::string predicate;
-    if (fqn == nullptr) {
-        predicate = std::any_cast<std::string>(visitChildren(ctx));
+    if (fqn == nullptr || ctx->expr()->children.size() > 1) {
+        predicate = std::any_cast<std::string>(visit(ctx->expr()));
     } else {
         auto symbol = current_scope->find(fqn->getText());
         if (symbol->kind == Symbol_::Kind::Event) {
@@ -487,7 +492,7 @@ any CodegenVisitor::visitAwaitStmt(eelParser::AwaitStmtContext* ctx) {
     return {};
 }
 
-any CodegenVisitor::visitReturnStmt(eelParser::ReturnStmtContext* ctx) {
+any CodegenVisitor::visitReturnStmt(eelParser::ReturnStmtContext *ctx) {
     auto is_async_return = current_sequence->start->kind == SequencePoint::AsyncPoint;
     if (ctx->expr() != nullptr) {
         auto value = std::any_cast<std::string>(visit(ctx->expr()));
@@ -505,7 +510,7 @@ any CodegenVisitor::visitReturnStmt(eelParser::ReturnStmtContext* ctx) {
     return {};
 }
 
-any CodegenVisitor::visitIfStmt(eelParser::IfStmtContext* ctx) {
+any CodegenVisitor::visitIfStmt(eelParser::IfStmtContext *ctx) {
     auto const stmt = ctx->stmt();
     auto const else_stmt = ctx->elseStmt() != nullptr ? ctx->elseStmt()->stmt() : nullptr;
     auto const if_cond = std::any_cast<std::string>(visit(ctx->conditionBlock()->expr()));
@@ -612,34 +617,47 @@ any CodegenVisitor::visitIfStmt(eelParser::IfStmtContext* ctx) {
     return {};
 }
 
-any CodegenVisitor::visitWhileStmt(eelParser::WhileStmtContext* ctx) {
-    /*
-     * else_is_async =
-            // If the else branch is present
-            else_stmt != nullptr
-            // and if it is an await statement or a stmt block
-            && (else_stmt->awaitStmt() != nullptr || else_stmt->stmtBlock() != nullptr)
-            // and the current sequence point is marked async
-            && current_sequence->current_point->is_async();
-     */
-
+any CodegenVisitor::visitWhileStmt(eelParser::WhileStmtContext *ctx) {
+    auto const cond_expr = std::any_cast<std::string>(visit(ctx->conditionBlock()->expr()));
     auto const stmt = ctx->stmtBlock();
-    auto seq = current_sequence->next();
 
-    if (seq->is_async()) {}
-    else {
+    auto seq = current_sequence->next();
+    if (seq->is_async()) {
+        close_open_async_case(*this);
+
+        auto while_starting_case = async_state_counter++;
+
+        auto original_stream = stream;
+        std::stringstream buffer;
+        stream = &buffer;
+
+        visitChildren(stmt);
+
+        stream = original_stream;
+
+        fmt::print(*stream, "case {}: {{"
+                            "if (!({})) {{ state.s = {}; return 0; }}",
+                   while_starting_case, cond_expr, async_state_counter);
+
+        fmt::print(*stream, "{} state.s = {}; return 0; }}", buffer.str(), while_starting_case);
+
+    } else {
+        // TODO check if there exists a case where we need to open a case here
+        fmt::print(*stream, "while ({}) {{", cond_expr);
+        visitChildren(stmt);
+        fmt::print(*stream, "}}");
     }
 
 
     return {}; // TODO
 }
 
-any CodegenVisitor::visitBreakStmt(eelParser::BreakStmtContext* ctx) {
+any CodegenVisitor::visitBreakStmt(eelParser::BreakStmtContext *ctx) {
     fmt::print(*stream, "break;");
     return {};
 }
 
-any CodegenVisitor::visitContinueStmt(eelParser::ContinueStmtContext* ctx) {
+any CodegenVisitor::visitContinueStmt(eelParser::ContinueStmtContext *ctx) {
     fmt::print(*stream, "continue;");
     return {};
 }
@@ -648,7 +666,7 @@ any CodegenVisitor::visitContinueStmt(eelParser::ContinueStmtContext* ctx) {
  * Pin statements
  */
 
-any CodegenVisitor::visitSetPinValueStmt(eelParser::SetPinValueStmtContext* ctx) {
+any CodegenVisitor::visitSetPinValueStmt(eelParser::SetPinValueStmtContext *ctx) {
     auto pin_name = std::any_cast<std::string>(visit(ctx->fqn()));
     auto value = std::any_cast<std::string>(visit(ctx->expr()));
 
@@ -656,7 +674,7 @@ any CodegenVisitor::visitSetPinValueStmt(eelParser::SetPinValueStmtContext* ctx)
     return {};
 }
 
-any CodegenVisitor::visitSetPinModeStmt(eelParser::SetPinModeStmtContext* ctx) {
+any CodegenVisitor::visitSetPinModeStmt(eelParser::SetPinModeStmtContext *ctx) {
     auto pin_name = std::any_cast<std::string>(visit(ctx->fqn()));
     auto value = std::any_cast<std::string>(visit(ctx->expr()));
 
@@ -664,7 +682,7 @@ any CodegenVisitor::visitSetPinModeStmt(eelParser::SetPinModeStmtContext* ctx) {
     return {};
 }
 
-any CodegenVisitor::visitSetPinNumberStmt(eelParser::SetPinNumberStmtContext* ctx) {
+any CodegenVisitor::visitSetPinNumberStmt(eelParser::SetPinNumberStmtContext *ctx) {
     auto pin_name = std::any_cast<std::string>(visit(ctx->fqn()));
     auto value = std::any_cast<std::string>(visit(ctx->expr()));
 
@@ -676,24 +694,29 @@ any CodegenVisitor::visitSetPinNumberStmt(eelParser::SetPinNumberStmtContext* ct
  * Helper functions
  */
 
-static void generate_functor_core(const symbols::Function &function,
-                                  CodegenVisitor &visitor) {
+static void generate_functor_core(const symbols::Function &function, CodegenVisitor &visitor) {
     auto outer_scope = visitor.current_scope;
     visitor.current_sequence = function.sequence;
     visitor.current_scope = visitor.current_sequence->start->scope;
 
     visitor.visitChildren(function.body);
 
+    if (function.is_async()) {
+        close_open_async_case(visitor);
+        fmt::print(*visitor.stream, "case {}: {{ return 1; }}", visitor.async_state_counter);
+    }
+
+
     visitor.current_scope = outer_scope; // restore previous scope
     visitor.current_sequence = nullptr;
 }
 
 void generate_sync_functor_type(
-        std::iostream* stream,
+        std::iostream *stream,
         const symbols::Function &function,
         CodegenVisitor &visitor
 ) {
-    const char* return_type_name = "void";
+    const char *return_type_name = "void";
     if (function.has_return_type) {
         return_type_name = function.return_type->value.type->type_target_name().c_str();
     }
@@ -707,7 +730,7 @@ void generate_sync_functor_type(
 }
 
 void generate_async_functor_type(
-        std::iostream* stream,
+        std::iostream *stream,
         const symbols::Function &function,
         CodegenVisitor &visitor
 ) {
@@ -746,9 +769,14 @@ void generate_async_functor_type(
         }
     }
 
-    fmt::print(*stream, "}};" // End of State struct decl
-                        "static int step(State&);" // Forward declare step
-                        "static int begin_invoke(State& state"); // Start of begin_invoke param list
+    seq->reset();
+
+    fmt::print(*stream, "}};"); // End of State struct decl
+    fmt::print(*stream, "static int step(State& state) {{"
+                        "switch (state.s) {{");
+    generate_functor_core(function, visitor);
+
+    fmt::print(*stream, "}} }} static int begin_invoke(State& state"); // Start of begin_invoke param list
 
     for (auto param: function.parameters) {
         auto var = param->value.variable;
@@ -764,13 +792,7 @@ void generate_async_functor_type(
         fmt::print(*stream, "state.{} = {};", name, name);
     }
 
-    fmt::print(*stream, "return step(state);}}\n"
-                        "static int step(State& state) {{"
-                        "switch (state.s) {{");
-
-    generate_functor_core(function, visitor);
-
-    fmt::print(*stream, "}} }} }};"); // End of step body and functor struct
+    fmt::print(*stream, "return step(state);}} }};");
 
 }
 

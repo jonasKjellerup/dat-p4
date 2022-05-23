@@ -75,6 +75,9 @@ void Sequence::reset() {
 }
 
 SequencePoint* Sequence::next() {
+    if (current_point == nullptr)
+        return current_point;
+
     auto block = dynamic_cast<Block*>(current_point);
     if (block != nullptr && block->child != nullptr) {
         current_point = block->child;
@@ -82,11 +85,15 @@ SequencePoint* Sequence::next() {
         current_point = current_point->next;
     }
 
-    if (current_block->next != nullptr) {
-        current_point = current_block->next;
-    } else {
-        current_point = current_block->parent;
+    if (current_point == nullptr) {
+        if (current_block->next != nullptr) {
+            current_point = current_block->next;
+        } else {
+            current_block = current_block->parent;
+            current_point = current_block;
+        }
     }
+
 
     if (auto b = dynamic_cast<Block*>(current_point)) {
         current_block = b;
@@ -111,7 +118,17 @@ void Sequence::restore(const std::tuple<SequencePoint*, Block*>& snapshot) {
 bool Sequence::is_next_async() {
     auto state = snapshot();
 
-    auto result = next()->is_async();
+    auto result = next() != nullptr && current_point->is_async();
+
+    restore(state);
+
+    return result;
+}
+
+bool Sequence::is_next_yield() {
+    auto state = snapshot();
+
+    auto result = next() != nullptr && current_point->kind == SequencePoint::YieldPoint;
 
     restore(state);
 

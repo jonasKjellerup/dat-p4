@@ -29,7 +29,6 @@ find_package(fmt)
 add_library(compiler
         ${ANTLR_Eel_CXX_OUTPUTS}
         ${ANTLR_Eel_CXX_OUTPUTS}
-        src/parsing.cc
         src/symbol_table.cc
         src/sequence.cc
         src/symbols/type.cc

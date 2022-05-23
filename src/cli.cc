@@ -1,6 +1,7 @@
 #include <iostream>
 #include <cxxopts.hpp>
 #include <fmt/core.h>
+#include <fmt/ostream.h>
 
 #include <antlr4-runtime.h>
 #include <eelLexer.h>
@@ -16,8 +17,8 @@ static auto check_command(const char*) -> bool;
 static void process_file(std::fstream& input_file, std::fstream&  output_file);
 
 auto main(int argc, char** argv) -> int {
-    const std::string ProgramName = "eel";
-    const std::string ProgramDescription = "Compiler for the ?? language";
+    const std::string ProgramName = "eelc";
+    const std::string ProgramDescription = "Compiler for the EEL language";
 
     cxxopts::Options options(ProgramName, ProgramDescription);
     options.add_options()
@@ -41,11 +42,12 @@ auto main(int argc, char** argv) -> int {
     auto output_path = fmt::format("{}.cc", input_path);
 
     std::fstream input_file(input_path);
-    std::fstream output_file(output_path);
+    std::fstream output_file(output_path, std::fstream::out);
 
     process_file(input_file, output_file);
 
-    fclose(output_file);
+    input_file.close();
+    output_file.close();
 
     return 0;
 }
@@ -55,7 +57,7 @@ auto check_command(const char* command) -> bool {
     return pipe != nullptr;
 }
 
-void process_file(std::fstream& input_file, std::fstream&  output_file) {
+void process_file(std::fstream& input_file, std::fstream& output_file) {
     antlr4::ANTLRInputStream input(input_file);
     eel::eelLexer lexer(&input);
     antlr4::CommonTokenStream tokens(&lexer);
@@ -67,7 +69,7 @@ void process_file(std::fstream& input_file, std::fstream&  output_file) {
 
     ScopeVisitor(&symbol_table).visitProgram(tree);
     TypeVisitor(&symbol_table).visitProgram(tree);
-    visitors::CodegenVisitor(symbol_table, output_file)
+    visitors::CodegenVisitor(symbol_table, &output_file)
         .visitProgram(tree);
 
 }
