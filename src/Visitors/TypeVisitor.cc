@@ -46,7 +46,7 @@ std::string symbol_str(Symbol symbol) {
             return symbol->value.constant->type->name;
             break;
         case Symbol_::Kind::Function:
-            if(symbol->value.function->has_return_type)
+            if(symbol->value.function->has_return_type())
                 return symbol->value.function->return_type->name;
             return "none";
             break;
@@ -182,7 +182,7 @@ bool TypeVisitor::Type::equals(TypeVisitor::Type* other) {
                 if(symbol->symbol()->id == 8 || symbol->symbol()->id == 9) return true;
                 break;
             case Type::Kind::Bool:
-                if(symbol->symbol()->id == 10) return true;
+                return symbol->symbol()->id == 10;
             default: // TODO: missing primitives for strings and chars
                 return false;
         }
@@ -701,7 +701,7 @@ antlrcpp::Any TypeVisitor::visitAwaitStmt(eelParser::AwaitStmtContext* ctx) {
 
 antlrcpp::Any TypeVisitor::visitReturnStmt(eelParser::ReturnStmtContext* ctx) {
     if(nullptr == ctx->expr()){
-        if(this->current_function->has_return_type){
+        if(this->current_function->has_return_type()){
             auto return_type = Type(this->current_function->return_type, nullptr);
             auto error = Error(Error::Kind::InvalidReturnType, ctx->start, ctx, return_type.to_string());
             this->errors.push_back(error);
@@ -709,7 +709,7 @@ antlrcpp::Any TypeVisitor::visitReturnStmt(eelParser::ReturnStmtContext* ctx) {
     } else {
         auto expr = any_cast<Type>(visit(ctx->expr()));
         auto undefined = Type(Type::Kind::Undefined, nullptr);
-        if(!this->current_function->has_return_type && !expr.equals(&undefined)){
+        if(!this->current_function->has_return_type() && !expr.equals(&undefined)){
             auto error = Error(Error::Kind::InvalidReturnType, expr.token, ctx, "return;");
             this->errors.push_back(error);
         } else {

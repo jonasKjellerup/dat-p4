@@ -170,6 +170,10 @@ any CodegenVisitor::visitIdentifier(eelParser::IdentifierContext *ctx) {
     return generate_variable_id(symbol); // TODO this should account for async context
 }
 
+any CodegenVisitor::visitFnCallExpr(eelParser::FnCallExprContext *ctx) {
+    return {};
+}
+
 any CodegenVisitor::visitAssignExpr(eelParser::AssignExprContext *ctx) {
     auto lop = std::any_cast<std::string>(visit(ctx->var));
     auto rop = std::any_cast<std::string>(visit(ctx->right));
@@ -717,7 +721,7 @@ void generate_sync_functor_type(
         CodegenVisitor &visitor
 ) {
     const char *return_type_name = "void";
-    if (function.has_return_type) {
+    if (function.has_return_type()) {
         return_type_name = function.return_type->value.type->type_target_name().c_str();
     }
 
@@ -743,7 +747,7 @@ void generate_async_functor_type(
                "u8 s;",
                function.type_id);
 
-    if (function.has_return_type) {
+    if (function.has_return_type()) {
         auto return_type = function.return_type->value.type;
         fmt::print(*stream, "{} r;", return_type->type_target_name());
     }

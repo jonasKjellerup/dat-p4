@@ -142,7 +142,6 @@ antlrcpp::Any ScopeVisitor::visitEnumDecl(eelParser::EnumDeclContext* ctx) {
 
 static symbols::Function* create_predicate_function(SymbolTable& table, Scope& current_scope) {
     auto function = new symbols::Function;
-    function->has_return_type = true;
     function->return_type = table.get_symbol(symbols::Primitive::boolean.id);
     function->scope = table.derive_scope(current_scope);
     function->sequence = new Sequence(function->scope);

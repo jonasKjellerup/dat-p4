@@ -36,7 +36,7 @@ namespace eel::visitors {
 
         // Expressions - Access/assign
         any visitIdentifier(eelParser::IdentifierContext *ctx) override;
-        //any visitFnCallExpr(eelParser::FnCallExprContext *ctx) override;
+        any visitFnCallExpr(eelParser::FnCallExprContext *ctx) override;
         any visitAssignExpr(eelParser::AssignExprContext *ctx) override;
         any visitReadPinExpr(eelParser::ReadPinExprContext *ctx) override;
 

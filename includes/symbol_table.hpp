@@ -43,7 +43,7 @@ namespace eel {
             return static_cast<const T*>(ptr->operator->());
         }
 
-        bool is_nullptr() {
+        bool is_nullptr() const {
             return this->table == nullptr;
         }
 

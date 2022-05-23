@@ -16,14 +16,7 @@ void Event::compute_id(Symbol symbol) {
 void Event::add_handle(Scope scope, visitors::SourcePos pos) {
     this->event_handles.insert(std::make_pair(
             pos_into_key(pos),
-            Function {
-                    scope,
-                    {},     // return type
-                    {},     // parameters
-                    false,  // has_return_type
-                    nullptr,
-                    fmt::format("{}_handle{}", this->id, this->event_handles.size())
-            }
+            Function(scope, fmt::format("{}_handle{}", this->id, this->event_handles.size()))
             ));
 }
 

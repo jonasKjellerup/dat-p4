@@ -234,7 +234,6 @@ Symbol Scope_::declare_func(const std::string& name) {
         root->symbol_map.insert(std::make_pair(name, symbol->id));
     }
     auto& function = *symbol->value.function;
-    function.has_return_type = false;
     function.scope = this->context->derive_scope(root);
     function.parameters = std::vector<Symbol>();
     function.type_id = fmt::format("func{}_{}", symbol->id, name);
@@ -261,7 +260,6 @@ Symbol Scope_::declare_func(const std::string& name, Symbol return_type) {
     }
     auto function = symbol->value.function;
     function->return_type = return_type;
-    function->has_return_type = true;
     function->scope = this->context->derive_scope(root);
     function->parameters = std::vector<Symbol>();
 
