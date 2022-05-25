@@ -52,15 +52,16 @@ TEST_CASE("setting flags updates correct bits", "[StatusFlags]") {
 }
 
 TEST_CASE("Event_::count_async_handles provides accurate count", "[Event]") {
+    struct State {};
     struct F1 {};
     struct F2 {};
     struct AF1 : AsyncFunction {};
     struct AF2 : AsyncFunction {};
 
-    REQUIRE(Event_<F1, F2>::count_async_handles() == 0);
-    REQUIRE(Event_<F1, AF1, F2>::count_async_handles() == 1);
-    REQUIRE(Event_<F1, AF1, F2, AF2>::count_async_handles() == 2);
-    REQUIRE(Event_<AF1, AF2>::count_async_handles() == 2);
+    REQUIRE(Event_<State, F1, F2>::count_async_handles() == 0);
+    REQUIRE(Event_<State, F1, AF1, F2>::count_async_handles() == 1);
+    REQUIRE(Event_<State, F1, AF1, F2, AF2>::count_async_handles() == 2);
+    REQUIRE(Event_<State, AF1, AF2>::count_async_handles() == 2);
 }
 
 /*
@@ -85,12 +86,13 @@ TEST_CASE("Event_::count_async_handles provides accurate count", "[Event]") {
  */
 TEST_CASE("predicate-less event is not dispatched until emitted", "[Event]") {
     static bool x = false;
+    struct State {};
     struct EventHandle {
         static void invoke() {
             x = true;
         }
     };
-    Event<PredicateLess, EventHandle> event;
+    Event<PredicateLess, State, EventHandle> event;
 
     run_handles(event);
     REQUIRE(x == false); // we expect that the handle was not invoked

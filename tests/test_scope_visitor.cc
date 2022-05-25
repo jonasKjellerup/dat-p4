@@ -72,8 +72,8 @@ TEST_CASE("Setup/Loop void function", "[scope_analysis]") {
     auto setup = table.get_scope(0)->find(visitors::builtin_setup_name);
     auto loop = table.get_scope(0)->find(visitors::builtin_loop_name);
     REQUIRE(setup->kind == Symbol_::Kind::Function);
-    REQUIRE(setup->value.function->has_return_type == false);
+    REQUIRE(setup->value.function->has_return_type() == false);
     REQUIRE(loop->kind == Symbol_::Kind::Function);
-    REQUIRE(loop->value.function->has_return_type == false);
+    REQUIRE(loop->value.function->has_return_type() == false);
 }
 
