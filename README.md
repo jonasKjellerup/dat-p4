@@ -18,6 +18,7 @@ Exception are marked with \*.
 - [cxxopts](https://github.com/jarro2783/cxxopts)
 - pkg-config\*
 - uuid-dev\*
+- {fmt} v8.1.1\*
 
 # Build instructions
 To build the project the above toolchains and build dependencies must be installed.

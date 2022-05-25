@@ -1,25 +1,4 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
-  <component name="ANTLRGenerationPreferences">
-    <option name="perGrammarGenerationSettings">
-      <list>
-        <PerGrammarGenerationSettings>
-          <option name="fileName" value="$PROJECT_DIR$/eel.g4" />
-          <option name="autoGen" value="true" />
-          <option name="outputDir" value="" />
-          <option name="libDir" value="" />
-          <option name="encoding" value="" />
-          <option name="pkg" value="antlr" />
-          <option name="language" value="" />
-          <option name="generateVisitor" value="true" />
-        </PerGrammarGenerationSettings>
-      </list>
-    </option>
-  </component>
   <component name="CMakeWorkspace" PROJECT_DIR="$PROJECT_DIR$" />
-  <component name="CidrRootsConfiguration">
-    <libraryRoots>
-      <file path="$PROJECT_DIR$/antlr-build" />
-    </libraryRoots>
-  </component>
 </project>

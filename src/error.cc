@@ -1,6 +1,8 @@
 #include "error.hpp"
 #include <utility>
 #include <iostream>
+#include <fmt/core.h>
+#include <fmt/ostream.h>
 
 Error::Pos Error::get_pos() const {
     return this->location;
@@ -20,6 +22,9 @@ void Error::print() {
     switch (this->kind) {
         case Error::TypeMisMatch:
             ::print(this,"Type mismatch expected: ");
+            break;
+        case Error::InvalidReturnType:
+            ::print(this,"Invalid return type expected: ");
             break;
         case Error::UndefinedType:
             ::print(this,"Undefined type");
@@ -52,6 +57,30 @@ Error::Error(Error::Kind _kind, std::string _source, std::string _expected, Pos 
     this->kind = _kind;
 }
 
+static Error::Pos get_source_location(Token* token){
+    return {
+            token->getLine(),
+            token->getCharPositionInLine()
+    };
+}
+
+static std::string get_context_source(ParserRuleContext* ctx) {
+    auto interval = misc::Interval(
+            ctx->getStart()->getStartIndex(),
+            ctx->getStop()->getStopIndex()
+    );
+    return ctx->start->getInputStream()->getText(interval);
+}
+
+Error::Error(Error::Kind kind, Token* token, ParserRuleContext* ctx, const std::string& expected){
+    this->location = get_source_location(token);
+    this->source = get_context_source(ctx);
+    this->offset = ctx->start->getCharPositionInLine();
+    this->kind = kind;
+    this->expected = expected;
+}
+
+
 void Error::set_pos(Error::Pos _location) {
     this->location = _location;
 }
@@ -68,4 +97,21 @@ Error::Pos::Pos(std::size_t _line, std::size_t _char) {
 Error::Pos::Pos() {
     this->l = 0;
     this->c = 0;
+}
+
+InternalError::InternalError(Subsystem src, const char* msg) : src(src), msg(msg) {}
+
+
+InternalError::InternalError(Subsystem src, std::string&& msg) : src(src), msg(msg) {
+
+}
+
+void InternalError::print() const {
+    static const char* error_labels[] = {"Codegen", "SymbolTable", "ScopeAnalysis"};
+
+    fmt::print(std::cout, "[{}} {}\n", error_labels[src], msg);
+}
+
+const char* InternalError::what() const noexcept {
+    return msg.c_str();
 }

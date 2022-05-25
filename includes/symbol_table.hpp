@@ -5,6 +5,7 @@
 #include <vector>
 
 #include <symbols/forward_decl.hpp>
+#include <error.hpp>
 
 // Temporary declarations of SymbolDefinitions
 
@@ -36,8 +37,17 @@ namespace eel {
         TablePtr(Id id, SymbolTable* context) : id(id), table(context){}
 
         T* operator->();
+        const T* operator->() const {
+            // We cast away the constness to reuse the specialisations of `T* operator->();`
+            auto ptr = const_cast<eel::TablePtr<T>*>(this);
+            return static_cast<const T*>(ptr->operator->());
+        }
 
-        bool is_nullptr() {
+        bool operator==(const eel::TablePtr<T>& other) const {
+            return table == other.table && id == other.id;
+        }
+
+        [[nodiscard]] bool is_nullptr() const {
             return this->table == nullptr;
         }
 
@@ -59,10 +69,11 @@ namespace eel {
         using Id = size_t;
 
         enum struct Kind {
-            None,
+            None = 0,
             Variable,
             Constant,
             Function,
+            ExternFunction,
             Type,
             Namespace,
             Event,
@@ -89,6 +100,7 @@ namespace eel {
             symbols::Constant* constant;
             symbols::Event* event;
             symbols::Function* function;
+            symbols::ExternalFunction* extern_function;
             // NOTE: can't naively deallocate this one since
             //       some types (primitives) have static storage
             symbols::Type* type;
@@ -132,9 +144,7 @@ namespace eel {
         /// is declared) point to the expected symbol.
         Symbol defer_symbol(std::string name, Symbol_::Kind);
 
-        void declare_var(Symbol& type, const std::string& name, bool is_static = false);
-        // TODO define var decl with default value
-        // void declare_var(Symbol& type, const std::string& name, Expr init, bool is_static = false);
+        symbols::Variable* declare_var(Symbol& type, const std::string& name, bool is_static = false);
 
         struct ConstExpr {}; // TODO replace with proper type
         void declare_const(Symbol& type, const std::string& name, ConstExpr expr);
@@ -142,20 +152,60 @@ namespace eel {
         /// \brief Registers an already existing type.
         void declare_type(symbols::Type*);
 
+        /// \brief Declares an external (c++) function
+        symbols::ExternalFunction* declare_fn_cpp_(
+                const std::string& eel_name,
+                const std::string& cpp_name,
+                Symbol return_type,
+                std::vector<Symbol>&& parameters
+                );
+
+        symbols::ExternalFunction* declare_fn_cpp_(
+                const std::string& eel_name,
+                const std::string& cpp_name,
+                Symbol return_type
+        );
+
+        template<typename... Parameters>
+        symbols::ExternalFunction* declare_fn_cpp(
+                const std::string& eel_name,
+                const std::string& cpp_name,
+                Symbol return_type,
+                Parameters... parameters
+        ) {
+            std::vector<Symbol> params {parameters...};
+            return declare_fn_cpp_(eel_name, cpp_name, return_type, std::move(params));
+        }
+
         Symbol declare_event(const std::string& name);
         Symbol declare_event(const std::string& name, symbols::Function* function);
-        symbols::Event& declare_event_handle(const std::string& event_name);
+        symbols::Event& declare_event_handle(const std::string& event_name, Error::Pos pos);
 
-        void declare_func();
-        Symbol declare_func(const std::string& name, Symbol return_type, Scope scope);
+        /// \brief Declares a function by the given name, with no return type.
+        /// The function is always declared in the root scope
+        /// even when called on a non-root scope.
+        /// \param name The name of the function that is being declared.
+        /// \returns The newly created function symbol.
+        Symbol declare_func(const std::string& name);
+
+        /// \brief Declares a function by the given name.
+        /// The function is always declared in the root scope
+        /// event when called on a non-root scope.
+        /// \param name The name of the function that is being declared.
+        /// \param return_type A type symbol representing the return type.
+        /// \returns The newly created function symbol.
+        Symbol declare_func(const std::string& name, Symbol return_type);
         void declare_namespace(const std::string& name);
 
         bool is_root();
-    private:
-        Id id;
-        std::unordered_map<std::string, Symbol_::Id> symbol_map;
+
         Scope parent{};
+    private:
+        std::unordered_map<std::string, Symbol_::Id> symbol_map;
         SymbolTable* context;
+        Id id;
+    public:
+        [[nodiscard]] const decltype(symbol_map)& members() const;
     };
 
     /// \brief Info used to track unresolved symbols.
@@ -212,6 +262,7 @@ namespace eel {
 
         Scope get_scope(Scope::Id id);
         Scope::Raw get_scope_raw(Scope::Id id);
+        size_t get_scope_count();
 
         /// \brief Attempts to resolve unresolved symbols.
         /// All symbols that are successfully resolved will

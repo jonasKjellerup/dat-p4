@@ -1,9 +1,13 @@
 #pragma once
 #include <cstddef>
 #include <string>
+#include "antlr4-runtime.h"
+
+using namespace antlr4;
 
 struct Error {
 public:
+
     struct Pos {
         Pos();
         Pos(size_t l, size_t c);
@@ -13,12 +17,16 @@ public:
     enum Kind {
         None,
         TypeMisMatch,
+        InvalidReturnType,
+        DuplicateEvent,
+        AlreadyDefined,
         ExpectedVariable,
         UndefinedType,
     };
     explicit Error();
     explicit Error(Error::Kind kind);
     explicit Error(Error::Kind kind, std::string source, std::string expected, Pos location, size_t offset);
+    explicit Error(Kind kind, Token* token, ParserRuleContext* ctx, const std::string& expected);
     std::string source;
     std::string expected;
     size_t offset;
@@ -32,4 +40,22 @@ public:
     /// Prints an error message corresponding to the error kind.
     void print();
 
+};
+
+struct InternalError : std::exception {
+public:
+    enum Subsystem {
+        Codegen = 0,
+        SymbolTable,
+        ScopeAnalysis,
+    };
+
+    InternalError(Subsystem src, const char* msg);
+    InternalError(Subsystem src, std::string&& msg);
+    void print() const;
+
+    [[nodiscard]] const char* what() const noexcept override;
+
+    Subsystem src;
+    std::string msg;
 };

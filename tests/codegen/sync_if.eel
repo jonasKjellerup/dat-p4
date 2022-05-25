@@ -1,0 +1,24 @@
+// Tests that if-else statements
+// function as intended in synchronous contexts
+setup {
+    i16 a = 0;
+    if (a == 0) {
+        a = 1;
+    } else {
+        fail("a == 0, failed");
+    }
+
+    if (a != 1)
+        fail("a != 1, failed");
+
+    if (a == 2)
+        fail("a == 2, failed");
+    else if (a == 1) {
+        a = 4;
+    } else {
+        fail("a == 1, failed");
+    }
+
+    assert_true(a == 4);
+    pass(1);
+}

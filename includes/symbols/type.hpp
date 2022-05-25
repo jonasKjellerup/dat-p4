@@ -42,6 +42,8 @@ namespace eel::symbols {
         static Primitive i32;
         static Primitive i64;
 
+        static Primitive usize;
+
         static Primitive f32;
         static Primitive f64;
 
