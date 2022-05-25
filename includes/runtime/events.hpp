@@ -72,7 +72,7 @@ struct InvokeHandle {
 template<IsAsyncFunction AsyncHandle, typename Flags, typename States>
 struct InvokeHandle<AsyncHandle, Flags, States> {
     static void invoke(size_t& i, Flags& flags, States& states) {
-        auto& state = std::get<AsyncHandle::State::offset>(states);
+        auto& state = AsyncHandle::get_state(states);
         // If already running
         if (flags.get(i)) {
             auto result = AsyncHandle::step(state);
@@ -86,7 +86,7 @@ struct InvokeHandle<AsyncHandle, Flags, States> {
     }
 };
 
-template<typename... EventHandles>
+template<typename EventState, typename... EventHandles>
 struct Event_ {
     /// \brief Counts the number of async handles passed as type parameters
     static constexpr size_t count_async_handles() {
@@ -99,12 +99,10 @@ struct Event_ {
         return i;
     }
 
-    using StateTuple = typename FilterInto<IsAsyncFunctionTest, std::tuple, EventHandles...>::type;
-
     // One flag for the status of each async handles
     // + 1 flag for manual emit
     StatusFlags<count_async_handles() + 1> handle_status {};
-    StateTuple states {};
+    EventState states {};
 
     u8 incomplete_tasks = 0;
     u8 awaiting = 0;
@@ -130,15 +128,15 @@ struct Event_ {
 /// The predicate type can be any type that implements
 /// `static bool invoke()`, is an AsyncFunction, or is
 /// the `PredicateLess` type.
-template<typename Predicate, typename... EventHandles>
-struct Event : Event_<EventHandles...> {
+template<typename Predicate, typename State, typename... EventHandles>
+struct Event : Event_<State, EventHandles...> {
     bool check() __attribute((always_inline)) {
         return Predicate::invoke();
     }
 };
 
-template<IsAsyncFunction AsyncPredicate, typename... EventHandles>
-struct Event<AsyncPredicate, EventHandles...> : Event_<EventHandles...> {
+template<IsAsyncFunction AsyncPredicate, typename HState, typename... EventHandles>
+struct Event<AsyncPredicate, HState, EventHandles...> : Event_<HState, EventHandles...> {
     using State = typename AsyncPredicate::State;
     State state;
 
@@ -152,8 +150,8 @@ struct Event<AsyncPredicate, EventHandles...> : Event_<EventHandles...> {
     }
 };
 
-template<typename... EventHandles>
-struct Event<PredicateLess, EventHandles...> : Event_<EventHandles...> {
+template<typename State, typename... EventHandles>
+struct Event<PredicateLess, State, EventHandles...> : Event_<State, EventHandles...> {
     [[nodiscard]] constexpr bool check() const { return false; }
 };
 

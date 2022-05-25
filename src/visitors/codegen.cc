@@ -447,16 +447,22 @@ any CodegenVisitor::visitEventDecl(eelParser::EventDeclContext *ctx) {
         event->has_predicate = false; // TODO ensure that this has not already been done (no point in doing it twice)
 
     static const std::string predicateless_type = "PredicateLess";
+    std::stringstream event_state;
+
+    fmt::print(event_state, "struct {}_handle_state {{", event->id);
 
     // Generate function types for event handles
     auto &handles = event->get_handles();
     for (auto &handle: handles) {
         if (handle.second.sequence->start->kind == SequencePoint::AsyncPoint) {
+            fmt::print(event_state, "{}::State {};", handle.second.type_id, handle.second.type_id);
             generate_async_functor_type(stream, handle.second, *this);
         } else {
             generate_sync_functor_type(stream, handle.second, *this);
         }
     }
+
+    fmt::print(event_state, "}};");
 
     auto predicate_type = predicateless_type;
     if (event->has_predicate) {
@@ -468,8 +474,10 @@ any CodegenVisitor::visitEventDecl(eelParser::EventDeclContext *ctx) {
         }
     }
 
+    fmt::print(*stream, "{}", event_state.str());
+
     // Generate the event field
-    fmt::print(*stream, "Event<{}", predicate_type);
+    fmt::print(*stream, "Event<{}, {}_handle_state", predicate_type, event->id);
     for (auto &handle: handles) {
         fmt::print(*stream, ", {}", handle.second.type_id);
     }
@@ -868,7 +876,10 @@ void generate_async_functor_type(
         fmt::print(*stream, "state.{} = {};", name, name);
     }
 
-    fmt::print(*stream, "return step(state);}} }};");
+    fmt::print(*stream, "return step(state);}}"
+                        "template <typename S>"
+                        "static State& get_state(S& s) {{ return s.{}; }}"
+                        "}};", function.type_id);
 
 }
 
