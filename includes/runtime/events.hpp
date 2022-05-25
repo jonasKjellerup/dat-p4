@@ -103,17 +103,17 @@ struct Event_ {
 
     // One flag for the status of each async handles
     // + 1 flag for manual emit
-    StatusFlags<count_async_handles() + 1> handle_status;
-    StateTuple states;
+    StatusFlags<count_async_handles() + 1> handle_status {};
+    StateTuple states {};
 
-    u8 incomplete_tasks;
-    u8 awaiting;
+    u8 incomplete_tasks = 0;
+    u8 awaiting = 0;
 
     void emit() {
         handle_status.set(0, true);
     }
 
-    decltype(handle_status.get(0)) has_emit_flag() const {
+    [[nodiscard]] decltype(handle_status.get(0)) has_emit_flag() const {
         return handle_status.get(0);
     }
 

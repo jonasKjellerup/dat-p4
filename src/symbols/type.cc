@@ -45,6 +45,8 @@ Primitive Primitive::i16("i16");
 Primitive Primitive::i32("i32");
 Primitive Primitive::i64("i64");
 
+Primitive Primitive::usize("usize");
+
 Primitive Primitive::f32("f32");
 Primitive Primitive::f64("f64");
 
@@ -63,6 +65,8 @@ void Primitive::register_primitives(eel::Scope scope) {
     scope->declare_type(&i16);
     scope->declare_type(&i32);
     scope->declare_type(&i64);
+
+    scope->declare_type(&usize);
 
     scope->declare_type(&f64);
     scope->declare_type(&f32);

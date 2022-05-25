@@ -43,7 +43,11 @@ namespace eel {
             return static_cast<const T*>(ptr->operator->());
         }
 
-        bool is_nullptr() const {
+        bool operator==(const eel::TablePtr<T>& other) const {
+            return table == other.table && id == other.id;
+        }
+
+        [[nodiscard]] bool is_nullptr() const {
             return this->table == nullptr;
         }
 
@@ -69,6 +73,7 @@ namespace eel {
             Variable,
             Constant,
             Function,
+            ExternFunction,
             Type,
             Namespace,
             Event,
@@ -95,6 +100,7 @@ namespace eel {
             symbols::Constant* constant;
             symbols::Event* event;
             symbols::Function* function;
+            symbols::ExternalFunction* extern_function;
             // NOTE: can't naively deallocate this one since
             //       some types (primitives) have static storage
             symbols::Type* type;
@@ -146,13 +152,38 @@ namespace eel {
         /// \brief Registers an already existing type.
         void declare_type(symbols::Type*);
 
+        /// \brief Declares an external (c++) function
+        symbols::ExternalFunction* declare_fn_cpp(
+                const std::string& eel_name,
+                const std::string& cpp_name,
+                Symbol return_type,
+                std::vector<Symbol>&& parameters
+                );
+
+        symbols::ExternalFunction* declare_fn_cpp(
+                const std::string& eel_name,
+                const std::string& cpp_name,
+                Symbol return_type
+        );
+
+        template<typename... Parameters>
+        symbols::ExternalFunction* declare_fn_cpp(
+                const std::string& eel_name,
+                const std::string& cpp_name,
+                Symbol return_type,
+                Parameters... parameters
+        ) {
+            std::vector params {parameters...};
+            declare_fn_cpp(eel_name, cpp_name, return_type, params);
+        }
+
         Symbol declare_event(const std::string& name);
         Symbol declare_event(const std::string& name, symbols::Function* function);
         symbols::Event& declare_event_handle(const std::string& event_name, Error::Pos pos);
 
         /// \brief Declares a function by the given name, with no return type.
         /// The function is always declared in the root scope
-        /// event when called on a non-root scope.
+        /// even when called on a non-root scope.
         /// \param name The name of the function that is being declared.
         /// \returns The newly created function symbol.
         Symbol declare_func(const std::string& name);
@@ -168,9 +199,9 @@ namespace eel {
 
         bool is_root();
 
+        Scope parent{};
     private:
         std::unordered_map<std::string, Symbol_::Id> symbol_map;
-        Scope parent{};
         SymbolTable* context;
         Id id;
     public:

@@ -17,7 +17,7 @@ namespace eel::symbols {
 
         [[nodiscard]] virtual const std::string& target_id() const = 0;
         [[nodiscard]] virtual bool is_async() const = 0;
-        bool has_return_type() const;
+        [[nodiscard]] bool has_return_type() const;
     };
 
     struct ExternalFunction : public Function_ {

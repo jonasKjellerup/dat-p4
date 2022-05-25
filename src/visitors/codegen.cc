@@ -57,6 +57,17 @@ static void resolve(Symbol &symbol, SymbolTable &table);
 CodegenVisitor::CodegenVisitor(eel::SymbolTable &table, std::iostream *stream)
         : table(table), stream(stream) {
     current_scope = table.root_scope;
+
+    auto size_type = table.get_symbol(symbols::Primitive::usize.id);
+    auto u32_type = table.get_symbol(symbols::Primitive::u32.id);
+
+    // Parameter types are currently omitted for print function due
+    // to not having a way of handling overloaded functions.
+    // This works exclusively because type checking has not been
+    // implemented.
+    current_scope->declare_fn_cpp("serial_print", "Serial.print", size_type);
+    current_scope->declare_fn_cpp("serial_println", "Serial.println", size_type);
+    current_scope->declare_fn_cpp("serial_begin", "Serial.begin", size_type, u32_type);
 }
 
 any CodegenVisitor::visitProgram(eelParser::ProgramContext *ctx) {
@@ -159,18 +170,55 @@ any CodegenVisitor::visitStringLiteral(eelParser::StringLiteralContext *ctx) {
  * Access/assign expressions
  */
 
-// TODO make this visitFqn at some point if we wanna implement member/namespace access
+// TODO make this visitFqn at some point when we implement member/namespace access
 any CodegenVisitor::visitIdentifier(eelParser::IdentifierContext *ctx) {
     auto identifier = ctx->Identifier()->getText();
-    auto symbol = current_scope->find(identifier);
+    auto is_in_async_state = false;
+    Symbol symbol;
+
+    if (current_sequence->start->is_async()) {
+        auto state_root = current_sequence->start->scope;
+        auto current = current_scope;
+
+        while (current != state_root) {
+            symbol = current->find_member(identifier);
+            if (!symbol.is_nullptr()) {
+                is_in_async_state = true;
+                break;
+            }
+
+            current = current->parent;
+        }
+    }
+
+    if (symbol.is_nullptr()) {
+        symbol = current_scope->find(identifier);
+    }
 
     resolve(symbol, table);
     check_symbol(symbol, Symbol_::Kind::Variable, identifier);
 
-    return generate_variable_id(symbol); // TODO this should account for async context
+    auto id = generate_variable_id(symbol);
+
+    return is_in_async_state ? fmt::format("state.{}", id) : id;
 }
 
 any CodegenVisitor::visitFnCallExpr(eelParser::FnCallExprContext *ctx) {
+    auto symbol = resolve_fqn(current_scope, ctx->fqn());
+
+    if (symbol->kind == Symbol_::Kind::Function)
+        throw InternalError(InternalError::Codegen, "Call to non external functions in not currently supported.");
+    else if (symbol->kind != Symbol_::Kind::ExternFunction)
+        throw InternalError(InternalError::Codegen, "Call to non function symbol encountered.");
+
+    auto fn = symbol->value.extern_function;
+
+    fmt::print(*stream, "{}(", fn->target_id());
+
+    if (ctx->params)
+        visit(ctx->params);
+
+    fmt::print(*stream, ");");
     return {};
 }
 
@@ -275,6 +323,16 @@ any CodegenVisitor::visitCastExpr(eelParser::CastExprContext *ctx) {
     return fmt::format("static_cast<{}>({})",
                        type_symbol->value.type->type_target_name(),
                        std::any_cast<std::string>(visit(ctx->expr())));
+}
+
+any CodegenVisitor::visitExprList(eelParser::ExprListContext *ctx) {
+    fmt::print(*stream, std::any_cast<std::string>(visit(ctx->expr())));
+    if (ctx->exprList()) {
+        fmt::print(*stream, ",");
+        visit(ctx->exprList());
+    }
+
+    return {};
 }
 
 /*

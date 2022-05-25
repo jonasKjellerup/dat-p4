@@ -30,6 +30,8 @@ static_assert(sizeof(i16) == 2);
 static_assert(sizeof(i32) == 4);
 static_assert(sizeof(i64) == 8);
 
+using usize = size_t;
+
 using f32 = float;
 static_assert(sizeof(f32) == 4, "f32 is not 32-bit (wrong compilation target?)");
 

@@ -62,6 +62,7 @@ namespace eel::visitors {
 
         // Expressions other
         any visitCastExpr(eelParser::CastExprContext *ctx) override;
+        any visitExprList(eelParser::ExprListContext *ctx) override;
 
         // Declarations
         any visitVariableDecl(eelParser::VariableDeclContext* ctx) override;
