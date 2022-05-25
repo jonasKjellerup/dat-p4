@@ -81,8 +81,16 @@ void process_file(std::fstream& input_file, std::fstream& output_file, BuildOpti
 
     scope_visitor.visitProgram(tree);
     TypeVisitor(&symbol_table).visitProgram(tree);
-    visitors::CodegenVisitor(symbol_table, &output_file)
-        .visitProgram(tree);
+
+    auto cg_visitor = visitors::CodegenVisitor(symbol_table, &output_file);
+    cg_visitor.pre_include_hook = [options, cg_visitor](){
+        if (options.testing) {
+            // TODO set target dynamically or at least default to avr
+            fmt::print(*cg_visitor.stream, "#define TARGET_AMD64\n"
+                                           "#define TESTING\n");
+        }
+    };
+    cg_visitor.visitProgram(tree);
 
 }
 
@@ -92,4 +100,6 @@ void register_test_library(SymbolTable& table) {
 
     s->declare_fn_cpp("assert_true", "assert_true", {}, bool_type);
     s->declare_fn_cpp("assert_false", "assert_false", {}, bool_type);
+    s->declare_fn_cpp("fail", "fail", {});
+    s->declare_fn_cpp("pass", "pass", {});
 }

@@ -1,0 +1,25 @@
+// Tests that if-else statements
+// function as intended in asynchronous context
+setup {
+    i16 a = 0;
+    if (a == 0) {
+        await true;
+        a = 1;
+    } else
+        fail("a == 0, failed");
+
+    await true;
+
+    if (a == 2) {
+        await true;
+        fail("a == 2, failed");
+    } else if (a == 1) {
+        a = 4;
+    } else {
+        await true;
+        fail("a == 1, failed");
+    }
+
+    assert_true(a == 4);
+    pass(1);
+}

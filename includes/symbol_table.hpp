@@ -153,14 +153,14 @@ namespace eel {
         void declare_type(symbols::Type*);
 
         /// \brief Declares an external (c++) function
-        symbols::ExternalFunction* declare_fn_cpp(
+        symbols::ExternalFunction* declare_fn_cpp_(
                 const std::string& eel_name,
                 const std::string& cpp_name,
                 Symbol return_type,
                 std::vector<Symbol>&& parameters
                 );
 
-        symbols::ExternalFunction* declare_fn_cpp(
+        symbols::ExternalFunction* declare_fn_cpp_(
                 const std::string& eel_name,
                 const std::string& cpp_name,
                 Symbol return_type
@@ -173,8 +173,8 @@ namespace eel {
                 Symbol return_type,
                 Parameters... parameters
         ) {
-            std::vector params {parameters...};
-            declare_fn_cpp(eel_name, cpp_name, return_type, params);
+            std::vector<Symbol> params {parameters...};
+            return declare_fn_cpp_(eel_name, cpp_name, return_type, std::move(params));
         }
 
         Symbol declare_event(const std::string& name);

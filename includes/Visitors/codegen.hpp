@@ -3,6 +3,7 @@
 #include <eelBaseVisitor.h>
 #include <antlr4-runtime.h>
 #include <iostream>
+#include <functional>
 
 #include <symbol_table.hpp>
 #include <sequence.hpp>
@@ -22,6 +23,8 @@ namespace eel::visitors {
         bool is_in_async_state_case = false;
 
         std::vector<symbols::Event*> events;
+
+        std::function<void()> pre_include_hook;
 
         CodegenVisitor(SymbolTable& table, std::iostream* stream);
 

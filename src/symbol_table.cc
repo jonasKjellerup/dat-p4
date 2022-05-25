@@ -242,7 +242,7 @@ Symbol Scope_::declare_func(const std::string &name) {
 }
 
 symbols::ExternalFunction *
-Scope_::declare_fn_cpp(
+Scope_::declare_fn_cpp_(
         const std::string &eel_name,
         const std::string &cpp_name,
         Symbol return_type,
@@ -266,6 +266,8 @@ Scope_::declare_fn_cpp(
         fn->return_type = return_type;
         fn->parameters = parameters;
 
+        symbol_map.insert(std::make_pair(eel_name, symbol->id));
+
         return fn;
     }
 
@@ -273,12 +275,12 @@ Scope_::declare_fn_cpp(
 }
 
 symbols::ExternalFunction *
-Scope_::declare_fn_cpp(
+Scope_::declare_fn_cpp_(
         const std::string &eel_name,
         const std::string &cpp_name,
         Symbol return_type
 ) {
-    return declare_fn_cpp(eel_name, cpp_name, return_type, {});
+    return declare_fn_cpp_(eel_name, cpp_name, return_type, {});
 }
 
 Symbol Scope_::declare_func(const std::string &name, Symbol return_type) {
